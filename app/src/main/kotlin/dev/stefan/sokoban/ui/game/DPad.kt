@@ -63,10 +63,10 @@ internal fun padDirection(dx: Float, dy: Float, deadZone: Float): Direction? {
 /**
  * The on-screen pad. Touching anywhere on the disk moves at once; holding
  * repeats after a deliberate pause; sliding to another direction switches
- * immediately, like a physical pad.
+ * immediately, like a physical pad. [onMove] is told which moves are repeats.
  */
 @Composable
-fun DPad(size: Dp, onMove: (Direction) -> Unit, modifier: Modifier = Modifier) {
+fun DPad(size: Dp, onMove: (direction: Direction, held: Boolean) -> Unit, modifier: Modifier = Modifier) {
     val colors = palette
     val scope = rememberCoroutineScope()
     val move by rememberUpdatedState(onMove)
@@ -86,27 +86,32 @@ fun DPad(size: Dp, onMove: (Direction) -> Unit, modifier: Modifier = Modifier) {
                         repeater?.cancel()
                         active = direction
                         if (direction == null) return
-                        move(direction)
+                        move(direction, false)
                         repeater = scope.launch {
                             delay(HOLD_DELAY_MS)
                             while (true) {
-                                move(direction)
+                                move(direction, true)
                                 delay(REPEAT_MS)
                             }
                         }
                     }
-                    press(padDirection(down.position.x - center.x, down.position.y - center.y, deadZone))
-                    down.consume()
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
-                        change.consume()
-                        val point = change.position
-                        press(padDirection(point.x - center.x, point.y - center.y, deadZone))
+                    // However the gesture ends (lift, or the system taking the
+                    // touch away), the repeat stops with it.
+                    try {
+                        press(padDirection(down.position.x - center.x, down.position.y - center.y, deadZone))
+                        down.consume()
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            change.consume()
+                            val point = change.position
+                            press(padDirection(point.x - center.x, point.y - center.y, deadZone))
+                        }
+                    } finally {
+                        repeater?.cancel()
+                        active = null
                     }
-                    repeater?.cancel()
-                    active = null
                 }
             },
     ) {
@@ -131,10 +136,10 @@ fun DPad(size: Dp, onMove: (Direction) -> Unit, modifier: Modifier = Modifier) {
         }
         val key = size * 0.3f
         val inset = size * 0.07f
-        PadKey(Direction.UP, active == Direction.UP, key, stringResource(R.string.move_up), { move(it) }, Modifier.align(Alignment.TopCenter).padding(top = inset))
-        PadKey(Direction.DOWN, active == Direction.DOWN, key, stringResource(R.string.move_down), { move(it) }, Modifier.align(Alignment.BottomCenter).padding(bottom = inset))
-        PadKey(Direction.LEFT, active == Direction.LEFT, key, stringResource(R.string.move_left), { move(it) }, Modifier.align(Alignment.CenterStart).padding(start = inset))
-        PadKey(Direction.RIGHT, active == Direction.RIGHT, key, stringResource(R.string.move_right), { move(it) }, Modifier.align(Alignment.CenterEnd).padding(end = inset))
+        PadKey(Direction.UP, active == Direction.UP, key, stringResource(R.string.move_up), { move(it, false) }, Modifier.align(Alignment.TopCenter).padding(top = inset))
+        PadKey(Direction.DOWN, active == Direction.DOWN, key, stringResource(R.string.move_down), { move(it, false) }, Modifier.align(Alignment.BottomCenter).padding(bottom = inset))
+        PadKey(Direction.LEFT, active == Direction.LEFT, key, stringResource(R.string.move_left), { move(it, false) }, Modifier.align(Alignment.CenterStart).padding(start = inset))
+        PadKey(Direction.RIGHT, active == Direction.RIGHT, key, stringResource(R.string.move_right), { move(it, false) }, Modifier.align(Alignment.CenterEnd).padding(end = inset))
     }
 }
 

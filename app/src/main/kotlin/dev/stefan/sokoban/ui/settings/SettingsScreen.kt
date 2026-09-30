@@ -28,9 +28,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,14 +43,18 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.stefan.sokoban.R
 import dev.stefan.sokoban.data.Settings
 import dev.stefan.sokoban.data.ThemeMode
 import dev.stefan.sokoban.ui.components.CircleIconButton
 import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
+import dev.stefan.sokoban.ui.components.SecondaryButton
 import dev.stefan.sokoban.ui.components.bounceClick
 import dev.stefan.sokoban.ui.theme.GameType
 import dev.stefan.sokoban.ui.theme.palette
@@ -152,24 +154,72 @@ fun SettingsScreen(
     }
 
     if (confirmReset) {
-        AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text(stringResource(R.string.reset_confirm_title), style = GameType.heading) },
-            text = { Text(stringResource(R.string.reset_confirm_text), style = GameType.body) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmReset = false
-                    onResetProgress()
-                }) { Text(stringResource(R.string.reset_confirm).uppercase(), style = GameType.button.copy(fontSize = GameType.button.fontSize * 0.8f), color = colors.danger) }
+        ResetDialog(
+            onConfirm = {
+                confirmReset = false
+                onResetProgress()
+                onTap()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmReset = false }) {
-                    Text(stringResource(R.string.cancel).uppercase(), style = GameType.button.copy(fontSize = GameType.button.fontSize * 0.8f), color = colors.textSecondary)
-                }
-            },
-            containerColor = colors.surfaceRaised,
-            shape = RoundedCornerShape(28.dp),
+            onDismiss = { confirmReset = false },
         )
+    }
+}
+
+/** The one destructive action of the game asks first, in the game's own style. */
+@Composable
+private fun ResetDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val colors = palette
+    val shape = RoundedCornerShape(28.dp)
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier
+                .padding(24.dp)
+                .widthIn(max = 360.dp)
+                .fillMaxWidth()
+                .shadow(24.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+                .background(colors.surfaceRaised, shape)
+                .border(1.dp, colors.outline, shape)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(Modifier.size(52.dp).background(colors.danger.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
+                GameIconView(GameIcon.RESTART, colors.danger, size = 26.dp)
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                stringResource(R.string.reset_confirm_title),
+                style = GameType.heading.copy(fontSize = 20.sp),
+                color = colors.textPrimary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.reset_confirm_text),
+                style = GameType.body,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(22.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SecondaryButton(stringResource(R.string.cancel), onDismiss, Modifier.weight(1f), compact = true)
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(54.dp)
+                        .bounceClick(onClick = onConfirm)
+                        .background(colors.danger, RoundedCornerShape(50)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.reset_confirm).uppercase(),
+                        style = GameType.button.copy(fontSize = GameType.button.fontSize * 0.78f, letterSpacing = GameType.button.letterSpacing * 0.5f),
+                        color = colors.onAccent,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -243,7 +293,7 @@ private fun PillSwitch(checked: Boolean) {
     ) {
         Box(
             Modifier
-                .offset(x = thumbOffset)
+                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
                 .size(24.dp)
                 .shadow(2.dp, CircleShape)
                 .background(colors.surfaceRaised, CircleShape),

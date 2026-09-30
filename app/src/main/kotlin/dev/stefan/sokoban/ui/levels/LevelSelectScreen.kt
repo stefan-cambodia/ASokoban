@@ -1,6 +1,7 @@
 package dev.stefan.sokoban.ui.levels
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -45,6 +46,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -60,6 +62,7 @@ import dev.stefan.sokoban.core.levels.World
 import dev.stefan.sokoban.core.progress.Progress
 import dev.stefan.sokoban.core.progress.ProgressRules
 import dev.stefan.sokoban.feedback.Feedback
+import dev.stefan.sokoban.ui.board.easeOutBack
 import dev.stefan.sokoban.ui.components.CircleIconButton
 import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
@@ -69,6 +72,8 @@ import dev.stefan.sokoban.ui.theme.GameType
 import dev.stefan.sokoban.ui.theme.palette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.sin
 
 private enum class CardState { LOCKED, UNLOCKING, OPEN, SOLVED }
 
@@ -76,10 +81,12 @@ private enum class CardState { LOCKED, UNLOCKING, OPEN, SOLVED }
 fun LevelSelectScreen(
     progress: Progress,
     seenUnlocks: Set<String>,
+    shownSolved: Set<String>,
     feedback: Feedback,
     onBack: () -> Unit,
     onPlay: (Int) -> Unit,
     onUnlocksSeen: (Set<String>) -> Unit,
+    onSolvedShown: (Set<String>) -> Unit,
 ) {
     val colors = palette
     val ids = remember { LevelPack.levels.map { it.id } }
@@ -98,6 +105,13 @@ fun LevelSelectScreen(
         feedback.unlock()
         delay(UNLOCK_SETTLE_MS)
         onUnlocksSeen(fresh)
+    }
+    // Levels solved since the list was last open: their stars pop in.
+    val justSolved = remember(progress, shownSolved) { progress.completed - shownSolved }
+    LaunchedEffect(justSolved) {
+        if (justSolved.isEmpty()) return@LaunchedEffect
+        delay(SOLVED_SETTLE_MS)
+        onSolvedShown(justSolved)
     }
     val totalStars = progress.bestMoves.entries.sumOf { (id, moves) ->
         LevelPack.levels.firstOrNull { it.id == id }?.let { ProgressRules.stars(moves, it.par) } ?: 0
@@ -167,6 +181,7 @@ fun LevelSelectScreen(
                             state = state,
                             best = progress.bestMoves[entry.id],
                             isNext = entry.index == next && state != CardState.SOLVED,
+                            celebrate = entry.id in justSolved,
                             onOpen = { onPlay(entry.index) },
                             onLocked = feedback::bump,
                         )
@@ -220,6 +235,7 @@ private fun LevelCard(
     state: CardState,
     best: Int?,
     isNext: Boolean,
+    celebrate: Boolean,
     onOpen: () -> Unit,
     onLocked: () -> Unit,
 ) {
@@ -234,6 +250,14 @@ private fun LevelCard(
             unlock.animateTo(1f, tween(UNLOCK_ANIMATION_MS))
         }
     }
+    // Freshly solved: the card hops and its stars land one after the other.
+    val solved = remember { Animatable(if (celebrate) 0f else 1f) }
+    LaunchedEffect(Unit) {
+        if (solved.value < 1f) {
+            delay(SOLVED_START_MS)
+            solved.animateTo(1f, tween(SOLVED_ANIMATION_MS, easing = LinearEasing))
+        }
+    }
     val pulse = if (isNext) {
         val transition = rememberInfiniteTransition(label = "next")
         transition.animateFloat(0f, 1f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse").value
@@ -244,7 +268,13 @@ private fun LevelCard(
     val stars = best?.let { ProgressRules.stars(it, entry.par) } ?: 0
     val description = when (state) {
         CardState.LOCKED -> stringResource(R.string.level_locked, entry.number)
-        CardState.SOLVED -> stringResource(R.string.level_solved, entry.number, entry.name, best ?: 0, stars)
+        CardState.SOLVED -> stringResource(
+            R.string.level_solved,
+            entry.number,
+            entry.name,
+            pluralStringResource(R.plurals.moves_count, best ?: 0, best ?: 0),
+            pluralStringResource(R.plurals.stars_count, stars, stars),
+        )
         else -> stringResource(R.string.level_open, entry.number, entry.name)
     }
     val locked = state == CardState.LOCKED
@@ -259,7 +289,12 @@ private fun LevelCard(
         Modifier
             .aspectRatio(0.8f)
             .clearAndSetSemantics { contentDescription = description }
-            .graphicsLayer { translationX = shake.value }
+            .graphicsLayer {
+                translationX = shake.value
+                val hop = 1f + 0.1f * sin((solved.value / 0.4f).coerceIn(0f, 1f) * PI.toFloat())
+                scaleX = hop
+                scaleY = hop
+            }
             .bounceClick(pressedScale = if (locked) 0.97f else 0.92f) {
                 if (locked) {
                     onLocked()
@@ -288,7 +323,7 @@ private fun LevelCard(
         // The lock is visible while locked and during the first half of the unlock.
         val lockAlpha = if (locked) 1f else if (state == CardState.UNLOCKING) (1f - (progress - 0.45f) / 0.25f).coerceIn(0f, 1f) else 0f
         if (lockAlpha > 0f) {
-            val tremble = if (state == CardState.UNLOCKING && progress < 0.45f) kotlin.math.sin(progress * 60f) * 14f else 0f
+            val tremble = if (state == CardState.UNLOCKING && progress < 0.45f) sin(progress * 60f) * 14f else 0f
             val burst = 1f + ((progress - 0.45f) / 0.25f).coerceIn(0f, 1f) * 0.6f
             GameIconView(
                 GameIcon.LOCK,
@@ -319,7 +354,7 @@ private fun LevelCard(
         }
         if (!locked) {
             val numberScale = if (state == CardState.UNLOCKING) {
-                ((progress - 0.55f) / 0.45f).coerceIn(0f, 1f).let { t -> if (t == 0f) 0f else 0.6f + 0.4f * t + kotlin.math.sin(t * Math.PI.toFloat()) * 0.25f }
+                ((progress - 0.55f) / 0.45f).coerceIn(0f, 1f).let { t -> if (t == 0f) 0f else 0.6f + 0.4f * t + sin(t * PI.toFloat()) * 0.25f }
             } else {
                 1f
             }
@@ -337,7 +372,9 @@ private fun LevelCard(
                     color = colors.textPrimary,
                 )
                 if (state == CardState.SOLVED) {
-                    StarRow(stars, size = 10.dp, spacing = 1.dp)
+                    StarRow(stars, size = 10.dp, spacing = 1.dp, reveal = { index ->
+                        easeOutBack(((solved.value - 0.2f - index * 0.2f) / 0.4f).coerceIn(0f, 1f))
+                    })
                     Text(best?.toString().orEmpty(), style = GameType.caption.copy(fontSize = 10.sp), color = colors.textSecondary)
                 } else {
                     Spacer(Modifier.height(4.dp))
@@ -348,6 +385,9 @@ private fun LevelCard(
     }
 }
 
+private const val SOLVED_START_MS = 300L
+private const val SOLVED_ANIMATION_MS = 750
+private const val SOLVED_SETTLE_MS = 1300L
 private const val UNLOCK_START_MS = 450L
 private const val UNLOCK_ANIMATION_MS = 1100
 private const val UNLOCK_SETTLE_MS = 1300L

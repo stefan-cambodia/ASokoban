@@ -119,7 +119,8 @@ fun SecondaryButton(
             .height(height)
             .alpha(if (enabled) 1f else 0.4f)
             .bounceClick(enabled = enabled, onClick = onClick)
-            .shadow(4.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            // Disabled, the pill lies flat: a faded layer would cut its shadow square.
+            .shadow(if (enabled) 4.dp else 0.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.surfaceRaised, shape)
             .border(1.dp, colors.outline, shape)
             .padding(horizontal = if (compact) 10.dp else 22.dp),
@@ -168,13 +169,31 @@ fun CircleIconButton(
     }
 }
 
-/** Three stars, [earned] of them lit. */
+/**
+ * Three stars, [earned] of them lit. [reveal] gives each star's scale, read
+ * while drawing, so an entrance can be animated without recomposing.
+ */
 @Composable
-fun StarRow(earned: Int, modifier: Modifier = Modifier, size: Dp = 14.dp, spacing: Dp = 2.dp) {
+fun StarRow(
+    earned: Int,
+    modifier: Modifier = Modifier,
+    size: Dp = 14.dp,
+    spacing: Dp = 2.dp,
+    reveal: ((Int) -> Float)? = null,
+) {
     val colors = palette
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(spacing)) {
         repeat(3) { index ->
-            GameIconView(GameIcon.STAR, if (index < earned) colors.star else colors.starEmpty, size = size)
+            val star = if (reveal == null) {
+                Modifier
+            } else {
+                Modifier.graphicsLayer {
+                    val scale = reveal(index)
+                    scaleX = scale
+                    scaleY = scale
+                }
+            }
+            GameIconView(GameIcon.STAR, if (index < earned) colors.star else colors.starEmpty, star, size = size)
         }
     }
 }

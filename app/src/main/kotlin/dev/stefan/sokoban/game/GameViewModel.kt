@@ -22,6 +22,7 @@ import dev.stefan.sokoban.core.progress.ProgressRules
 import dev.stefan.sokoban.data.ProgressRepository
 import dev.stefan.sokoban.feedback.GameFeedback
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -77,11 +78,15 @@ sealed interface BoardEvent {
 /**
  * Runs one level at a time.
  *
- * Input goes through a small queue consumed by a single coroutine. The first
- * command runs immediately; the ones typed during an animation wait just long
- * enough for each step to be seen, so a burst of swipes glides instead of
- * teleporting. The queue is short on purpose: inputs far ahead of the screen
- * are dropped rather than played out late.
+ * Input goes through a queue consumed by a single coroutine. The first command
+ * runs immediately; the ones typed during an animation wait just long enough
+ * for each step to be seen, so a burst of swipes glides instead of teleporting,
+ * and the pace quickens while a backlog lasts.
+ *
+ * Every deliberate press is played: a dropped move in a planned sequence is the
+ * worst thing a Sokoban can do to its player. Only the repeats of a *held*
+ * control are dropped when the hero is already busy, so letting go stops at
+ * once instead of running on.
  */
 class GameViewModel(
     private val progressRepository: ProgressRepository,
@@ -132,17 +137,22 @@ class GameViewModel(
         }
     }
 
-    /** Shows level [index], keeping the current game if it is already that level. */
+    /**
+     * Shows level [index]. A game of that level still in progress is resumed;
+     * a finished one starts over.
+     */
     fun open(index: Int) {
-        if (_state.value?.entry?.index == index) return
+        val current = _state.value
+        if (current?.entry?.index == index && !current.game.isSolved) return
         load(index, moves = null)
     }
 
-    fun move(direction: Direction) = enqueue(Command.Move(direction))
+    /** [held] marks the automatic repeats of a control that is kept pressed. */
+    fun move(direction: Direction, held: Boolean = false) = enqueue(Command.Move(direction), held)
 
     fun walkTo(target: Position) = enqueue(Command.Walk(target))
 
-    fun undo() = enqueue(Command.Undo)
+    fun undo(held: Boolean = false) = enqueue(Command.Undo, held)
 
     fun restart() {
         val current = _state.value ?: return
@@ -177,9 +187,9 @@ class GameViewModel(
         savedState[KEY_MOVES] = game.moveLog()
     }
 
-    private fun enqueue(command: Command) {
+    private fun enqueue(command: Command, held: Boolean = false) {
         if (_state.value?.phase != GamePhase.Playing) return
-        if (queued >= MAX_QUEUED) return
+        if (queued >= if (held) MAX_QUEUED_HELD else MAX_QUEUED) return
         queued++
         commands.trySend(command)
     }
@@ -257,26 +267,37 @@ class GameViewModel(
         savedState[KEY_MOVES] = game.moveLog()
     }
 
-    /** Leaves each step visible; a backlog of input speeds the pace up a little. */
-    private suspend fun pace(stepMs: Long) = delay(if (queued > 0) stepMs * 3 / 4 else stepMs)
+    /** Leaves each step visible; a backlog of input speeds the pace up. */
+    private suspend fun pace(stepMs: Long) = delay(
+        when {
+            queued >= HURRY_AT -> stepMs * 3 / 5
+            queued > 0 -> stepMs * 3 / 4
+            else -> stepMs
+        },
+    )
 
     private fun celebrate() {
         val current = _state.value ?: return
         drain()
         _state.value = current.copy(phase = GamePhase.Celebrating)
         _events.tryEmit(BoardEvent.Solved)
-        victory = viewModelScope.launch {
-            // Let the last crate land and light up before anything else happens.
-            delay(CELEBRATION_MS)
-            feedback.victory()
-            val entry = current.entry
-            val moves = current.game.moves
-            val completion = try {
+        val entry = current.entry
+        val moves = current.game.moves
+        // The solve is recorded at once and on its own: restarting or leaving
+        // during the celebration must never cost the player a finished level.
+        val saving = viewModelScope.async {
+            try {
                 progressRepository.complete(entry.index, moves, entry.par)
             } catch (error: IOException) {
                 Log.w(TAG, "Could not save progress", error)
                 null
             }
+        }
+        victory = viewModelScope.launch {
+            // Let the last crate land and light up before anything else happens.
+            delay(CELEBRATION_MS)
+            feedback.victory()
+            val completion = saving.await()
             val ids = LevelPack.levels.map { it.id }
             val previousBest = completion?.previousBest ?: bests[entry.id]
             val result = LevelResult(
@@ -297,8 +318,14 @@ class GameViewModel(
         private const val KEY_LEVEL = "level"
         private const val KEY_MOVES = "moves"
 
-        /** Commands allowed to wait behind the one running. */
-        private const val MAX_QUEUED = 3
+        /** Deliberate presses allowed to wait behind the one running. */
+        private const val MAX_QUEUED = 16
+
+        /** A held control buffers a single repeat: releasing it stops the hero. */
+        private const val MAX_QUEUED_HELD = 1
+
+        /** Backlog from which the pace goes from brisk to hurried. */
+        private const val HURRY_AT = 3
 
         const val STEP_MS = 105L
         const val PUSH_MS = 115L

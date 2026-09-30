@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -63,6 +64,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
@@ -100,6 +102,7 @@ fun GameScreen(
     onBack: () -> Unit,
     onOpenLevel: (Int) -> Unit,
 ) {
+    // Navigation opens the level; this covers a screen restored without it.
     LaunchedEffect(levelIndex) { viewModel.open(levelIndex) }
     val uiState by viewModel.state.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
@@ -129,6 +132,7 @@ fun GameScreen(
                 val result = (state.phase as? GamePhase.Complete)?.result
                 if (result != null) {
                     // On the result card: Enter continues, R replays.
+                    if (event.nativeKeyEvent.repeatCount > 0) return@onPreviewKeyEvent true
                     when (event.key) {
                         Key.Enter, Key.NumPadEnter, Key.N, Key.Spacebar -> result.nextIndex?.let(onOpenLevel) ?: onBack()
                         Key.R -> viewModel.restart()
@@ -136,13 +140,15 @@ fun GameScreen(
                     }
                     return@onPreviewKeyEvent true
                 }
+                // A key kept down repeats far faster than the hero walks.
+                val held = event.nativeKeyEvent.repeatCount > 0
                 when (event.key) {
-                    Key.DirectionUp, Key.W -> viewModel.move(Direction.UP)
-                    Key.DirectionDown, Key.S -> viewModel.move(Direction.DOWN)
-                    Key.DirectionLeft, Key.A -> viewModel.move(Direction.LEFT)
-                    Key.DirectionRight, Key.D -> viewModel.move(Direction.RIGHT)
-                    Key.Z, Key.U, Key.Backspace -> viewModel.undo()
-                    Key.R -> viewModel.restart()
+                    Key.DirectionUp, Key.W -> viewModel.move(Direction.UP, held)
+                    Key.DirectionDown, Key.S -> viewModel.move(Direction.DOWN, held)
+                    Key.DirectionLeft, Key.A -> viewModel.move(Direction.LEFT, held)
+                    Key.DirectionRight, Key.D -> viewModel.move(Direction.RIGHT, held)
+                    Key.Z, Key.U, Key.Backspace -> viewModel.undo(held)
+                    Key.R -> if (!held) viewModel.restart()
                     else -> return@onPreviewKeyEvent false
                 }
                 true
@@ -171,7 +177,7 @@ fun GameScreen(
                 events = viewModel.events,
                 description = description,
                 modifier = modifier,
-                onMove = viewModel::move,
+                onMove = { viewModel.move(it) },
                 onTapCell = onTapCell,
             )
         }
@@ -185,7 +191,14 @@ fun GameScreen(
             )
         }
 
-        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        val complete = state.phase as? GamePhase.Complete
+        Box(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                // Under the result card the game is scenery: screen readers skip it.
+                .then(if (complete != null) Modifier.clearAndSetSemantics { } else Modifier),
+        ) {
             if (landscape) {
                 Row(Modifier.fillMaxSize()) {
                     Column(Modifier.weight(1f).fillMaxSize()) {
@@ -221,7 +234,6 @@ fun GameScreen(
             modifier = Modifier.fillMaxSize(),
         )
 
-        val complete = state.phase as? GamePhase.Complete
         AnimatedVisibility(visible = complete != null, enter = fadeIn(tween(250)), exit = fadeOut(tween(200))) {
             Box(
                 Modifier
@@ -282,7 +294,8 @@ private fun Stats(state: GameUiState) {
     val colors = palette
     val game = state.game
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp),
+        // On a wide screen the three figures stay together instead of drifting to the edges.
+        Modifier.widthIn(max = 460.dp).fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -348,8 +361,8 @@ private fun Controls(
     padSize: Dp,
     canUndo: Boolean,
     highlightUndo: Boolean,
-    onMove: (Direction) -> Unit,
-    onUndo: () -> Unit,
+    onMove: (direction: Direction, held: Boolean) -> Unit,
+    onUndo: (held: Boolean) -> Unit,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         DPad(padSize, onMove)
@@ -360,10 +373,11 @@ private fun Controls(
 
 /** Undo: tap to step back, hold to rewind. Pulses when a crate is stuck. */
 @Composable
-private fun UndoButton(enabled: Boolean, highlight: Boolean, onUndo: () -> Unit) {
+private fun UndoButton(enabled: Boolean, highlight: Boolean, onUndo: (held: Boolean) -> Unit) {
     val colors = palette
     val scope = rememberCoroutineScope()
     val undo by rememberUpdatedState(onUndo)
+    val isEnabled by rememberUpdatedState(enabled)
     var pressed by remember { mutableStateOf(false) }
     val transition = rememberInfiniteTransition(label = "undo")
     val beat by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "beat")
@@ -379,26 +393,31 @@ private fun UndoButton(enabled: Boolean, highlight: Boolean, onUndo: () -> Unit)
                 role = Role.Button
                 if (!enabled) disabled()
                 onClick(label) {
-                    undo()
+                    undo(false)
                     true
                 }
             }
-            .pointerInput(enabled) {
-                if (!enabled) return@pointerInput
+            .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
+                    if (!isEnabled) return@awaitEachGesture
                     pressed = true
-                    undo()
+                    undo(false)
+                    // The rewind ends by itself at the first move, and with the
+                    // gesture however that one ends: it must never outlive the hold.
                     val rewind: Job = scope.launch {
                         delay(UNDO_HOLD_MS)
-                        while (true) {
-                            undo()
+                        while (isEnabled) {
+                            undo(true)
                             delay(UNDO_REPEAT_MS)
                         }
                     }
-                    waitForUpOrCancellation()
-                    rewind.cancel()
-                    pressed = false
+                    try {
+                        waitForUpOrCancellation()
+                    } finally {
+                        rewind.cancel()
+                        pressed = false
+                    }
                 }
             }
             .graphicsLayer {
@@ -406,7 +425,8 @@ private fun UndoButton(enabled: Boolean, highlight: Boolean, onUndo: () -> Unit)
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(if (pressed) 1.dp else 5.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            // Disabled, the button lies flat: a faded layer would cut its shadow square.
+            .shadow(if (!enabled) 0.dp else if (pressed) 1.dp else 5.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(lerp(colors.surfaceRaised, colors.accent.copy(alpha = 0.18f).compositeOver(colors.surfaceRaised), glow), shape)
             .border(1.5.dp, lerp(colors.outline, colors.accent, glow), shape)
             .padding(horizontal = 26.dp),

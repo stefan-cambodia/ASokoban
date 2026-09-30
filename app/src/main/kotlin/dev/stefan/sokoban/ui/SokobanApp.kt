@@ -86,6 +86,7 @@ fun SokobanApp() {
     val settings by app.settings.collectAsStateWithLifecycle()
     val progress by app.progress.collectAsStateWithLifecycle()
     val seenUnlocks by app.seenUnlocks.collectAsStateWithLifecycle()
+    val shownSolved by app.shownSolved.collectAsStateWithLifecycle()
 
     // Until preferences are read the window background stays: no theme flash.
     val current = settings ?: return
@@ -118,6 +119,12 @@ fun SokobanApp() {
             forward = true
             stack = stack.dropLast(1) + screen
         }
+        // The level is loaded before its screen appears, so the first frame
+        // already shows it (and never the end of the previous game).
+        fun play(index: Int) {
+            game.open(index)
+            push(Screen.Game(index))
+        }
 
         BackHandler(enabled = stack.size > 1) { pop() }
 
@@ -137,21 +144,24 @@ fun SokobanApp() {
                     Screen.Home -> if (loadedProgress != null) {
                         HomeScreen(
                             progress = loadedProgress,
-                            onPlay = { push(Screen.Game(it)) },
+                            onPlay = ::play,
                             onLevels = { push(Screen.Levels) },
                             onSettings = { push(Screen.Settings) },
                         )
                     }
                     Screen.Levels -> {
                         val seen = seenUnlocks
-                        if (loadedProgress != null && seen != null) {
+                        val shown = shownSolved
+                        if (loadedProgress != null && seen != null && shown != null) {
                             LevelSelectScreen(
                                 progress = loadedProgress,
                                 seenUnlocks = seen,
+                                shownSolved = shown,
                                 feedback = app.feedback,
                                 onBack = { pop() },
-                                onPlay = { push(Screen.Game(it)) },
+                                onPlay = ::play,
                                 onUnlocksSeen = app::markUnlocksSeen,
+                                onSolvedShown = app::markSolvedShown,
                             )
                         }
                     }
@@ -178,7 +188,10 @@ fun SokobanApp() {
                                 stack = stack.dropLast(1) + Screen.Levels
                             }
                         },
-                        onOpenLevel = { replaceTop(Screen.Game(it)) },
+                        onOpenLevel = {
+                            game.open(it)
+                            replaceTop(Screen.Game(it))
+                        },
                     )
                 }
             }

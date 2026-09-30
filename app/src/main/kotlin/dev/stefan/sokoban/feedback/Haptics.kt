@@ -76,7 +76,7 @@ class Haptics(context: Context) {
     }
 
     private fun build(haptic: Haptic, device: Vibrator): VibrationEffect = when {
-        primitives && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> composition(haptic)
+        primitives -> composition(haptic)
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> predefined(haptic)
         else -> oneShot(haptic, device.hasAmplitudeControl())
     }
@@ -98,6 +98,7 @@ class Haptics(context: Context) {
         return composition.compose()
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun predefined(haptic: Haptic): VibrationEffect = when (haptic) {
         Haptic.STEP, Haptic.TAP, Haptic.BUMP -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
         Haptic.PUSH -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)

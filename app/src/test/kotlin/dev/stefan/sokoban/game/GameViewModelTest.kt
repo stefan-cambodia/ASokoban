@@ -101,6 +101,46 @@ class GameViewModelTest {
     }
 
     @Test
+    fun `reopening a solved level starts it over, an unfinished one resumes`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.open(0)
+        vm.move(Direction.RIGHT)
+        advanceUntilIdle()
+        vm.open(0)
+        assertEquals(1, vm.state.value?.game?.moves, "a game in progress is kept")
+
+        repeat(2) {
+            vm.move(Direction.RIGHT)
+            advanceTimeBy(GameViewModel.PUSH_MS + 1)
+        }
+        advanceUntilIdle()
+        assertTrue(vm.state.value?.phase is GamePhase.Complete)
+        vm.open(0)
+        val state = requireNotNull(vm.state.value)
+        assertEquals(GamePhase.Playing, state.phase)
+        assertEquals(0, state.game.moves)
+        assertEquals(3, state.best)
+    }
+
+    @Test
+    fun `a solve is saved even when the level is restarted during the celebration`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.open(0)
+        repeat(3) {
+            vm.move(Direction.RIGHT)
+            advanceTimeBy(GameViewModel.PUSH_MS + 1)
+        }
+        assertEquals(GamePhase.Celebrating, vm.state.value?.phase)
+        vm.restart()
+        advanceUntilIdle()
+        assertEquals(GamePhase.Playing, vm.state.value?.phase)
+        val saved = repository.progress.first()
+        assertTrue("w1-01" in saved.completed)
+        assertEquals(3, saved.bestMoves["w1-01"])
+        assertFalse("victory" in feedback.events, "the fanfare belongs to the result card")
+    }
+
+    @Test
     fun `moves are refused once the level is solved`() = runTest(dispatcher) {
         val vm = viewModel()
         vm.open(0)
@@ -115,13 +155,33 @@ class GameViewModelTest {
     }
 
     @Test
-    fun `a burst of input runs one move now and queues only a few`() = runTest(dispatcher) {
+    fun `every press of a fast burst is played`() = runTest(dispatcher) {
         val vm = viewModel()
         vm.open(2) // "Pair": the player's row is empty.
-        repeat(8) { vm.move(if (it % 2 == 0) Direction.LEFT else Direction.RIGHT) }
+        repeat(10) { vm.move(if (it % 2 == 0) Direction.LEFT else Direction.RIGHT) }
         assertEquals(1, vm.state.value?.game?.moves, "the first move is immediate")
         advanceUntilIdle()
-        assertEquals(4, vm.state.value?.game?.moves, "one immediate move plus three queued")
+        assertEquals(10, vm.state.value?.game?.moves, "no press is lost")
+        assertEquals("lrlrlrlrlr", vm.state.value?.game?.moveLog())
+    }
+
+    @Test
+    fun `a backlog is played faster than single moves`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.open(2)
+        repeat(10) { vm.move(if (it % 2 == 0) Direction.LEFT else Direction.RIGHT) }
+        advanceTimeBy(GameViewModel.STEP_MS * 7)
+        assertEquals(10, vm.state.value?.game?.moves)
+    }
+
+    @Test
+    fun `a held control never runs ahead of the hero`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.open(2)
+        vm.move(Direction.LEFT)
+        repeat(8) { vm.move(if (it % 2 == 0) Direction.RIGHT else Direction.LEFT, held = true) }
+        advanceUntilIdle()
+        assertEquals(2, vm.state.value?.game?.moves, "the press, plus the one repeat that was buffered")
     }
 
     @Test
