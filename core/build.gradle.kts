@@ -24,9 +24,15 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
+// Level design tools (see LevelWorkbench): enabled only when these are passed.
+val workbenchProperties = listOf("sokoban.report", "sokoban.generate")
+    .associateWith { providers.gradleProperty(it).orNull }
+    .filterValues { it != null }
+
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
-    maxHeapSize = "2g"
+    maxHeapSize = "4g"
+    workbenchProperties.forEach { (name, value) -> systemProperty(name, value!!) }
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
