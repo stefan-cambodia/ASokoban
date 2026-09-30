@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window colours shown before the first Compose frame; match the palette. -->
+    <color name="window_background">#FFF5EEE3</color>
+    <color name="icon_background">#FF3F5673</color>
+</resources>

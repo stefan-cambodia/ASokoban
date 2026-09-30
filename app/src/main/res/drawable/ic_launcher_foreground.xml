@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Goal ring. -->
+    <path
+        android:strokeColor="#FF4FD1A5"
+        android:strokeWidth="4"
+        android:fillColor="#00000000"
+        android:pathData="M24,56 A30,30 0 1 0 84,56 A30,30 0 1 0 24,56 Z" />
+    <!-- Crate shadow. -->
+    <path
+        android:fillColor="#40000000"
+        android:pathData="M30,79 A24,5 0 1 0 78,79 A24,5 0 1 0 30,79 Z" />
+    <!-- Crate front face. -->
+    <path
+        android:fillColor="#FFC77B24"
+        android:pathData="M40,36 H68 A8,8 0 0 1 76,44 V72 A8,8 0 0 1 68,80 H40 A8,8 0 0 1 32,72 V44 A8,8 0 0 1 40,36 Z" />
+    <!-- Crate top face. -->
+    <path
+        android:fillColor="#FFF2A444"
+        android:pathData="M40,32 H68 A8,8 0 0 1 76,40 V66 A8,8 0 0 1 68,74 H40 A8,8 0 0 1 32,66 V40 A8,8 0 0 1 40,32 Z" />
+    <!-- Panel and brace. -->
+    <path
+        android:strokeColor="#FFC77B24"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:pathData="M43,39 H65 A4,4 0 0 1 69,43 V63 A4,4 0 0 1 65,67 H43 A4,4 0 0 1 39,63 V43 A4,4 0 0 1 43,39 Z" />
+    <path
+        android:strokeColor="#FFC77B24"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M43,63 L65,43" />
+    <!-- Top highlight. -->
+    <path
+        android:strokeColor="#FFFFD28A"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M41,34.5 H67" />
+</vector>
