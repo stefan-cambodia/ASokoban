@@ -19,10 +19,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -43,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -117,7 +121,12 @@ fun LevelSelectScreen(
         LevelPack.levels.firstOrNull { it.id == id }?.let { ProgressRules.stars(moves, it.par) } ?: 0
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    // The list runs on under the navigation bar; its last row stops above it.
+    val insets = WindowInsets.safeDrawing
+    val bottomInset = insets.asPaddingValues().calculateBottomPadding()
+    BoxWithConstraints(
+        Modifier.fillMaxSize().windowInsetsPadding(insets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)),
+    ) {
         val columns = if (maxWidth >= 600.dp) 10 else 5
         val grid = rememberLazyGridState()
         // Open on the world of the level to play next.
@@ -159,7 +168,7 @@ fun LevelSelectScreen(
                 columns = GridCells.Fixed(columns),
                 state = grid,
                 modifier = Modifier.widthIn(max = 720.dp).fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp + bottomInset),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -188,6 +197,17 @@ fun LevelSelectScreen(
                     }
                 }
             }
+        }
+        // Under the navigation bar the cards fade into the background.
+        if (bottomInset > 0.dp) {
+            val fade = colors.backgroundDeep
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(bottomInset + 24.dp)
+                    .background(Brush.verticalGradient(0f to fade.copy(alpha = 0f), 0.6f to fade.copy(alpha = 0.9f), 1f to fade)),
+            )
         }
     }
 }

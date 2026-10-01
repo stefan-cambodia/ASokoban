@@ -97,7 +97,10 @@ fun SokobanApp() {
     }
     val activity = LocalActivity.current as? ComponentActivity
     DisposableEffect(activity, dark) {
-        val style = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { dark }
+        // An explicit style, not `auto`: that one lets the system lay a contrast
+        // scrim behind a three-button navigation bar, a pale band across the game.
+        val transparent = android.graphics.Color.TRANSPARENT
+        val style = if (dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent)
         activity?.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
         onDispose { }
     }
