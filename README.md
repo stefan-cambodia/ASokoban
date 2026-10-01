@@ -13,8 +13,39 @@ Requirements: Android SDK 37 and JDK 17 or newer.
 ./gradlew :app:lintDebug
 ```
 
-`assembleRelease` builds a minified APK signed with the debug key; configure a
-real signing config in `app/build.gradle.kts` before publishing.
+## Release
+
+```bash
+./gradlew bundleRelease   # app/build/outputs/bundle/release/app-release.aab (for Google Play)
+./gradlew assembleRelease # app/build/outputs/apk/release/app-release.apk
+```
+
+Both are minified with R8. They are signed with your upload key when one is
+configured, and with the debug key otherwise (fine for testing; Google Play
+refuses it). Keys and their passwords never go into git.
+
+Create an upload key once, and keep a backup of it:
+
+```bash
+keytool -genkeypair -keystore ~/keys/sokoban-upload.jks -alias upload \
+    -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Then either write `keystore.properties` at the project root (git-ignored):
+
+```properties
+storeFile=/home/you/keys/sokoban-upload.jks
+storePassword=…
+keyAlias=upload
+keyPassword=…
+```
+
+or set `SOKOBAN_KEYSTORE`, `SOKOBAN_KEYSTORE_PASSWORD`, `SOKOBAN_KEY_ALIAS` and
+`SOKOBAN_KEY_PASSWORD` (for a build server). A relative `storeFile` is resolved
+from the project root. A partial configuration fails the build instead of
+falling back to the debug key.
+
+Raise `versionCode` in `app/build.gradle.kts` for every upload.
 
 ## Layout
 

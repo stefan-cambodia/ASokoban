@@ -1,7 +1,30 @@
+import java.util.Properties
+
 plugins {
     // AGP 9 has built-in Kotlin support: no org.jetbrains.kotlin.android plugin.
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+// The release key comes from keystore.properties at the project root (kept out
+// of git) or, on a build server, from SOKOBAN_* environment variables. Without
+// either, release builds are signed with the debug key: enough to test R8 and
+// resource shrinking, and refused by Google Play.
+val releaseKey: Map<String, String>? = run {
+    val names = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    val file = providers.fileContents(rootProject.layout.projectDirectory.file("keystore.properties")).asText.orNull
+    val values = if (file != null) {
+        val properties = Properties().apply { load(file.reader()) }
+        names.mapNotNull { name -> properties.getProperty(name)?.let { name to it } }.toMap()
+    } else {
+        val variables = listOf("SOKOBAN_KEYSTORE", "SOKOBAN_KEYSTORE_PASSWORD", "SOKOBAN_KEY_ALIAS", "SOKOBAN_KEY_PASSWORD")
+        names.zip(variables).mapNotNull { (name, variable) -> providers.environmentVariable(variable).orNull?.let { name to it } }.toMap()
+    }
+    when {
+        values.isEmpty() -> null
+        values.size < names.size -> error("Release signing is incomplete, missing: ${(names - values.keys).joinToString()}")
+        else -> values
+    }
 }
 
 android {
@@ -17,6 +40,17 @@ android {
         versionName = "1.0.0"
     }
 
+    signingConfigs {
+        if (releaseKey != null) {
+            create("release") {
+                storeFile = rootProject.file(releaseKey.getValue("storeFile"))
+                storePassword = releaseKey.getValue("storePassword")
+                keyAlias = releaseKey.getValue("keyAlias")
+                keyPassword = releaseKey.getValue("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -25,10 +59,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // No release key is configured in this repository: the release build
-            // is signed with the debug key so R8 and resource shrinking can be
-            // verified. Configure a real signing config before publishing.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
