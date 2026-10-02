@@ -45,11 +45,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.toRect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -57,6 +65,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.stefan.sokoban.R
@@ -241,7 +250,7 @@ private fun WorldHeader(world: World, progress: Progress) {
                         drawRoundRect(
                             colors.goal,
                             size = size.copy(width = size.width * fraction),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2),
+                            cornerRadius = CornerRadius(size.height / 2),
                         )
                     }
                 },
@@ -307,7 +316,6 @@ private fun LevelCard(
 
     Box(
         Modifier
-            .aspectRatio(0.8f)
             .clearAndSetSemantics { contentDescription = description }
             .graphicsLayer {
                 translationX = shake.value
@@ -337,73 +345,130 @@ private fun LevelCard(
                 color = if (isNext) colors.accent.copy(alpha = 0.55f + 0.45f * pulse) else colors.outline.copy(alpha = if (locked) 0.5f else 1f),
                 shape = shape,
             ),
-        contentAlignment = Alignment.Center,
     ) {
         val progress = unlock.value
-        // The lock is visible while locked and during the first half of the unlock.
-        val lockAlpha = if (locked) 1f else if (state == CardState.UNLOCKING) (1f - (progress - 0.45f) / 0.25f).coerceIn(0f, 1f) else 0f
-        if (lockAlpha > 0f) {
-            val tremble = if (state == CardState.UNLOCKING && progress < 0.45f) sin(progress * 60f) * 14f else 0f
-            val burst = 1f + ((progress - 0.45f) / 0.25f).coerceIn(0f, 1f) * 0.6f
-            GameIconView(
-                GameIcon.LOCK,
-                colors.textMuted,
-                Modifier.graphicsLayer {
-                    alpha = lockAlpha
-                    rotationZ = tremble
-                    scaleX = burst
-                    scaleY = burst
-                },
-                size = 22.dp,
-            )
-        }
-        if (state == CardState.UNLOCKING && progress in 0.45f..0.95f) {
-            val ring = (progress - 0.45f) / 0.5f
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 7.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            // The map takes the top of the card; locked, only a faint outline
+            // of its walls shows, coloured in as the lock bursts. It is built
+            // once per size, and the unlock is read while drawing, so the
+            // animation only redraws it.
             Box(
                 Modifier
-                    .fillMaxSize()
-                    .drawBehind {
-                        drawCircle(
-                            colors.star.copy(alpha = 0.8f * (1f - ring)),
-                            radius = size.minDimension * (0.2f + 0.45f * ring),
-                            center = Offset(size.width / 2, size.height / 2),
-                            style = Stroke(width = 3.dp.toPx() * (1f - ring) + 1f),
-                        )
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp)
+                    .aspectRatio(MAP_ASPECT)
+                    .drawWithCache {
+                        val map = MiniMap(entry.level, size)
+                        // Only the map is rounded off: the lock and the
+                        // unlock ring may reach past it.
+                        val corners = Path().apply { addRoundRect(RoundRect(size.toRect(), CornerRadius(5.dp.toPx()))) }
+                        onDrawBehind {
+                            val reveal = when (state) {
+                                CardState.LOCKED -> 0f
+                                CardState.UNLOCKING -> ((unlock.value - 0.45f) / 0.4f).coerceIn(0f, 1f)
+                                else -> 1f
+                            }
+                            clipPath(corners) { map.draw(this, colors, reveal, solved = state == CardState.SOLVED) }
+                        }
                     },
-            )
-        }
-        if (!locked) {
-            val numberScale = if (state == CardState.UNLOCKING) {
-                ((progress - 0.55f) / 0.45f).coerceIn(0f, 1f).let { t -> if (t == 0f) 0f else 0.6f + 0.4f * t + sin(t * PI.toFloat()) * 0.25f }
-            } else {
-                1f
+                contentAlignment = Alignment.Center,
+            ) {
+                // The lock is visible while locked and during the first half of the unlock.
+                val lockAlpha = if (locked) 1f else if (state == CardState.UNLOCKING) (1f - (progress - 0.45f) / 0.25f).coerceIn(0f, 1f) else 0f
+                if (lockAlpha > 0f) {
+                    val tremble = if (state == CardState.UNLOCKING && progress < 0.45f) sin(progress * 60f) * 14f else 0f
+                    val burst = 1f + ((progress - 0.45f) / 0.25f).coerceIn(0f, 1f) * 0.6f
+                    GameIconView(
+                        GameIcon.LOCK,
+                        colors.textMuted,
+                        Modifier.graphicsLayer {
+                            alpha = lockAlpha
+                            rotationZ = tremble
+                            scaleX = burst
+                            scaleY = burst
+                        },
+                        size = 22.dp,
+                    )
+                }
+                if (state == CardState.UNLOCKING && progress in 0.45f..0.95f) {
+                    val ring = (progress - 0.45f) / 0.5f
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .drawBehind {
+                                drawCircle(
+                                    colors.star.copy(alpha = 0.8f * (1f - ring)),
+                                    radius = size.minDimension * (0.25f + 0.55f * ring),
+                                    center = Offset(size.width / 2, size.height / 2),
+                                    style = Stroke(width = 3.dp.toPx() * (1f - ring) + 1f),
+                                )
+                            },
+                    )
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            // A locked level's number waits greyed out; unlocking warms it up
+            // with a pop once the lock has burst.
+            val warm = when (state) {
+                CardState.LOCKED -> 0f
+                CardState.UNLOCKING -> ((progress - 0.55f) / 0.45f).coerceIn(0f, 1f)
+                else -> 1f
             }
             Column(
+                Modifier.height(labelHeight()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.graphicsLayer {
-                    scaleX = numberScale
-                    scaleY = numberScale
-                },
             ) {
                 Text(
                     entry.number.toString(),
-                    style = GameType.heading.copy(fontSize = 21.sp),
-                    color = colors.textPrimary,
+                    style = GameType.heading.copy(fontSize = 15.sp, lineHeight = NUMBER_LINE),
+                    color = lerp(colors.textMuted.copy(alpha = 0.6f), colors.textPrimary, warm),
+                    modifier = Modifier.graphicsLayer {
+                        val pop = if (state == CardState.UNLOCKING) 1f + sin(warm * PI.toFloat()) * 0.3f else 1f
+                        scaleX = pop
+                        scaleY = pop
+                    },
                 )
-                if (state == CardState.SOLVED) {
-                    StarRow(stars, size = 10.dp, spacing = 1.dp, reveal = { index ->
-                        easeOutBack(((solved.value - 0.2f - index * 0.2f) / 0.4f).coerceIn(0f, 1f))
-                    })
-                    Text(best?.toString().orEmpty(), style = GameType.caption.copy(fontSize = 10.sp), color = colors.textSecondary)
-                } else {
-                    Spacer(Modifier.height(4.dp))
-                    Box(Modifier.width(14.dp).height(3.dp).background(if (isNext) colors.accent else colors.outline, RoundedCornerShape(50)))
+                if (!locked) {
+                    if (state == CardState.SOLVED) {
+                        StarRow(stars, size = CARD_STAR, spacing = 1.dp, reveal = { index ->
+                            easeOutBack(((solved.value - 0.2f - index * 0.2f) / 0.4f).coerceIn(0f, 1f))
+                        })
+                        Text(
+                            best?.toString().orEmpty(),
+                            style = GameType.caption.copy(fontSize = 10.sp, lineHeight = BEST_LINE),
+                            color = colors.textSecondary,
+                        )
+                    } else {
+                        Spacer(Modifier.height(4.dp))
+                        Box(
+                            Modifier
+                                .width(14.dp)
+                                .height(3.dp)
+                                .graphicsLayer { alpha = warm }
+                                .background(if (isNext) colors.accent else colors.outline, RoundedCornerShape(50)),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/**
+ * A card is the level's map over its label. The map keeps its proportions on
+ * any screen, and the label is as tall as a solved card's number, stars and
+ * best score whatever the text size, so every card in a row lines up.
+ */
+private const val MAP_ASPECT = 1.3f
+private val NUMBER_LINE = 17.sp
+private val BEST_LINE = 12.sp
+private val CARD_STAR = 9.dp
+
+@Composable
+private fun labelHeight(): Dp = with(LocalDensity.current) { NUMBER_LINE.toDp() + BEST_LINE.toDp() } + CARD_STAR + 4.dp
 
 private const val SOLVED_START_MS = 300L
 private const val SOLVED_ANIMATION_MS = 750
