@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# One run per branch: a newer push cancels the run it makes obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Tests, lint and builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The wrapper jar is a committed binary: check it is an official Gradle
+      # distribution before running it.
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: Set up the JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          # compileSdkMinor = 1: the platform is android-37.1, not android-37.
+          packages: 'platforms;android-37.1 build-tools;37.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Engine and app tests
+        run: ./gradlew :core:test :app:testDebugUnitTest --console=plain
+
+      # Release builds only run lint's fatal subset (lintVital): the full check
+      # has to be asked for.
+      - name: Lint
+        run: ./gradlew :app:lintDebug --console=plain
+
+      - name: Debug APK
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      # No signing secrets here, so these fall back to the debug key and are not
+      # publishable. They run so that R8 and resource shrinking, which break
+      # silently, are exercised on every commit.
+      - name: Release APK and bundle (debug key)
+        run: ./gradlew :app:assembleRelease :app:bundleRelease --console=plain
+
+      # Google Play rejects native code that is not aligned for 16 KB pages; a
+      # dependency update is enough to bring some in.
+      - name: 16 KB page alignment
+        run: |
+          set -e
+          APK=app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/37.0.0/zipalign" -c -P 16 4 "$APK"
+          mkdir -p "$RUNNER_TEMP/libs" && unzip -q -o "$APK" 'lib/*' -d "$RUNNER_TEMP/libs" || true
+          bad=0
+          for so in $(find "$RUNNER_TEMP/libs" -name '*.so'); do
+            for align in $(readelf -lW "$so" | awk '$1 == "LOAD" { print $NF }'); do
+              if [ $((align)) -lt 16384 ]; then echo "::error::${so#$RUNNER_TEMP/libs/} LOAD segment aligned to $align"; bad=1; fi
+            done
+          done
+          [ $bad -eq 0 ] && echo "Native libraries: $(find "$RUNNER_TEMP/libs" -name '*.so' | wc -l), all 16 KB aligned."
+          exit $bad
+
+      # The path that reads a real release key is only taken on publishing day.
+      # A throwaway key, made here and lost with the runner, proves it works: if
+      # the certificates carry its name, the key was read and used.
+      - name: Release signing (throwaway key, not published)
+        run: |
+          set -e
+          keytool -genkeypair -keystore "$RUNNER_TEMP/throwaway.jks" \
+            -alias ci -keyalg RSA -keysize 2048 -validity 1 \
+            -storepass throwaway -keypass throwaway \
+            -dname "CN=Throwaway CI key, O=Sokoban" > /dev/null 2>&1
+          SOKOBAN_KEYSTORE="$RUNNER_TEMP/throwaway.jks" \
+          SOKOBAN_KEYSTORE_PASSWORD=throwaway \
+          SOKOBAN_KEY_ALIAS=ci \
+          SOKOBAN_KEY_PASSWORD=throwaway \
+            ./gradlew :app:assembleRelease :app:bundleRelease --console=plain
+          APK_DN=$("$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs \
+                     app/build/outputs/apk/release/app-release.apk | grep -m1 "certificate DN")
+          AAB_DN=$(keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab | grep -m1 "Owner")
+          echo "APK: $APK_DN"; echo "AAB: $AAB_DN"
+          rm -f "$RUNNER_TEMP/throwaway.jks"
+          case "$APK_DN$AAB_DN" in
+            *"Throwaway CI key"*"Throwaway CI key"*) echo "The supplied key signed both." ;;
+            *) echo "::error::The supplied key did not sign both the APK and the bundle"; exit 1 ;;
+          esac
+
+      # Published even on failure: a failing test is only useful with its report.
+      - name: Upload test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            core/build/reports/tests/
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.html
+            core/build/test-results/
+            app/build/test-results/
+          retention-days: 14
+
+      - name: Upload the debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: sokoban-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
