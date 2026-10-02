@@ -26,7 +26,7 @@ import kotlin.math.sin
  * every icon shares one visual language with the hand-drawn board.
  */
 enum class GameIcon {
-    BACK, RESTART, UNDO, PLAY, NEXT, LEVELS, SETTINGS, LOCK, STAR, CHECK, SOUND, SOUND_OFF, VIBRATION, THEME, CLOSE;
+    BACK, RESTART, UNDO, PLAY, NEXT, LEVELS, SETTINGS, LOCK, STAR, CHECK, SOUND, SOUND_OFF, VIBRATION, THEME, CLOSE, FIT;
 
     /** Strokes and fills, in 24-unit coordinates scaled by [s]. */
     internal fun shapes(s: Float): List<Pair<Path, Boolean>> {
@@ -129,6 +129,13 @@ enum class GameIcon {
             CLOSE -> {
                 strokes.poly(6f, 6f, 18f, 18f)
                 strokes.poly(18f, 6f, 6f, 18f)
+            }
+            // Four corners pointing out: the whole board.
+            FIT -> {
+                strokes.poly(4.5f, 9.5f, 4.5f, 4.5f, 9.5f, 4.5f)
+                strokes.poly(14.5f, 4.5f, 19.5f, 4.5f, 19.5f, 9.5f)
+                strokes.poly(19.5f, 14.5f, 19.5f, 19.5f, 14.5f, 19.5f)
+                strokes.poly(9.5f, 19.5f, 4.5f, 19.5f, 4.5f, 14.5f)
             }
         }
         return listOf(fills to true, strokes to false)

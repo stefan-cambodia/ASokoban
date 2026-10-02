@@ -11,6 +11,7 @@
     <string name="back">Back</string>
     <string name="restart">Restart</string>
     <string name="undo">Undo</string>
+    <string name="zoom_fit">Show the whole board</string>
     <string name="level_number">Level %1$d</string>
     <string name="moves">Moves</string>
     <string name="crates">Crates</string>
