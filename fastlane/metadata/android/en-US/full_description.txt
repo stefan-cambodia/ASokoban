@@ -1,0 +1,16 @@
+Push every crate onto a target. Simple rules, real puzzles.
+
+Sokoban is the classic warehouse puzzle: you can push one crate at a time and never pull one back, so every move counts. Plan ahead, or get stuck.
+
+• 50 hand-designed levels in five worlds, from First Steps to the Vault
+• Every level verified solvable
+• Unlimited undo, and a restart for a fresh look
+• Up to three stars for solving a level within par
+• Solving a level opens the next two, so one hard puzzle never blocks you
+• Notices when a crate can no longer reach a target and suggests an undo
+• Play with the on-screen pad, swipes, tap-to-walk or a keyboard
+• Light and dark themes
+• Sound effects and haptic feedback, each of which can be switched off
+• Screen-reader descriptions of the board
+
+No ads, no in-app purchases, no account. The game has no internet access and collects nothing: your progress stays on your device and in your own Android backup.
