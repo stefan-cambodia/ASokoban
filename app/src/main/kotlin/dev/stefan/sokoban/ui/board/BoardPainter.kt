@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -34,16 +35,21 @@ const val WALL_DEPTH = 0.2f
 
 private val EYE_SIDES = floatArrayOf(-1f, 1f)
 
+/** One stone of a wall's top face, with its own shade: -1 darker .. 1 lighter. */
+private class Stone(val rect: RoundRect, val tone: Float)
+
 /** Floor, grout and wall relief: everything that never moves. */
 internal class StaticBoard(level: Level, private val tile: Float, private val origin: Offset) {
 
     private val floorEven = Path()
     private val floorOdd = Path()
+    private val floorLit = Path()
+    private val floorShaded = Path()
     private val speckles = ArrayList<Offset>()
     private val grout = Path()
     private val wallTops = Path()
-    private val wallCaps = Path()
-    private val wallFronts = Path()
+    private val stones = ArrayList<Stone>()
+    private val wallFronts = ArrayList<Pair<Path, RoundRect>>()
     private val sideShadows = ArrayList<Offset>()
     private val wallHighlights = ArrayList<Pair<Offset, Offset>>()
     private val wallShadows = ArrayList<Pair<Offset, Size>>()
@@ -53,6 +59,7 @@ internal class StaticBoard(level: Level, private val tile: Float, private val or
         val radius = tile * 0.18f
         fun wall(x: Int, y: Int) = level.tileAt(x, y) == Tile.WALL
         fun cell(x: Int, y: Int) = Offset(origin.x + x * tile, origin.y + y * tile)
+        fun hash(x: Int, y: Int) = ((x * 73856093) xor (y * 19349663)) * 0x2545F491 ushr 7
 
         for (y in 0 until level.height) for (x in 0 until level.width) {
             val tileType = level.tileAt(x, y)
@@ -70,6 +77,18 @@ internal class StaticBoard(level: Level, private val tile: Float, private val or
                     CornerRadius(tile * 0.12f),
                 )
                 (if ((x + y) % 2 == 0) floorEven else floorOdd).addRoundRect(rect)
+                // A bevel on every paver: lit along the top and left edges,
+                // shaded along the bottom and right ones.
+                val edge = inset + tile * 0.03f
+                val corner = tile * 0.14f
+                floorLit.moveTo(topLeft.x + edge, topLeft.y + tile - corner)
+                floorLit.lineTo(topLeft.x + edge, topLeft.y + corner)
+                floorLit.quadraticTo(topLeft.x + edge, topLeft.y + edge, topLeft.x + corner, topLeft.y + edge)
+                floorLit.lineTo(topLeft.x + tile - corner, topLeft.y + edge)
+                floorShaded.moveTo(topLeft.x + tile - edge, topLeft.y + corner)
+                floorShaded.lineTo(topLeft.x + tile - edge, topLeft.y + tile - corner)
+                floorShaded.quadraticTo(topLeft.x + tile - edge, topLeft.y + tile - edge, topLeft.x + tile - corner, topLeft.y + tile - edge)
+                floorShaded.lineTo(topLeft.x + corner, topLeft.y + tile - edge)
                 // Light comes from the top left: a wall on the left shades the floor.
                 if (wall(x - 1, y)) sideShadows += topLeft
                 // Two faint marks per tile, placed by a hash of the cell: texture
@@ -82,6 +101,39 @@ internal class StaticBoard(level: Level, private val tile: Float, private val or
                         topLeft.y + tile * (0.2f + (h ushr 8 and 0xFF) / 255f * 0.6f),
                     )
                 }
+            }
+        }
+
+        // Stones laid over the wall tops. Most cells hold one stone; a hash of
+        // the cell joins some with the neighbour to the right or below and
+        // splits a few in two, so the wall reads as masonry rather than as a
+        // grid of identical blocks.
+        val taken = HashSet<Int>()
+        val gap = tile * 0.06f
+        fun stone(left: Float, top: Float, right: Float, bottom: Float, seed: Int) {
+            val tone = (seed ushr 11 and 0xFF) / 255f * 2f - 1f
+            stones += Stone(RoundRect(left + gap, top + gap, right - gap, bottom - gap, CornerRadius(tile * 0.1f)), tone)
+        }
+        for (y in 0 until level.height) for (x in 0 until level.width) {
+            if (!wall(x, y) || !taken.add(y * level.width + x)) continue
+            val topLeft = cell(x, y)
+            val h = hash(x, y)
+            val right = y * level.width + x + 1
+            val below = (y + 1) * level.width + x
+            when {
+                h % 8 == 0 && wall(x + 1, y) && right !in taken -> {
+                    taken += right
+                    stone(topLeft.x, topLeft.y, topLeft.x + tile * 2, topLeft.y + tile, h)
+                }
+                h % 8 == 1 && wall(x, y + 1) && below !in taken -> {
+                    taken += below
+                    stone(topLeft.x, topLeft.y, topLeft.x + tile, topLeft.y + tile * 2, h)
+                }
+                h % 8 == 2 -> {
+                    stone(topLeft.x, topLeft.y, topLeft.x + tile, topLeft.y + tile / 2, h)
+                    stone(topLeft.x, topLeft.y + tile / 2, topLeft.x + tile, topLeft.y + tile, h * 31)
+                }
+                else -> stone(topLeft.x, topLeft.y, topLeft.x + tile, topLeft.y + tile, h)
             }
         }
 
@@ -104,26 +156,17 @@ internal class StaticBoard(level: Level, private val tile: Float, private val or
                     bottomLeftCornerRadius = round(!down && !left),
                 ),
             )
-            // A slightly lighter cap on every block: the wall reads as stones.
-            val capInset = tile * 0.09f
-            wallCaps.addRoundRect(
-                RoundRect(
-                    topLeft.x + capInset, topLeft.y + capInset, topLeft.x + tile - capInset, topLeft.y + tile - capInset,
-                    CornerRadius(tile * 0.12f),
-                ),
-            )
             if (!down) {
                 val depth = tile * WALL_DEPTH
-                wallFronts.addRoundRect(
-                    RoundRect(
-                        left = topLeft.x, top = topLeft.y + tile * 0.5f, right = topLeft.x + tile, bottom = topLeft.y + tile + depth,
-                        topLeftCornerRadius = CornerRadius.Zero,
-                        topRightCornerRadius = CornerRadius.Zero,
-                        // Square where the front continues or meets a wall beside it.
-                        bottomRightCornerRadius = round(!right),
-                        bottomLeftCornerRadius = round(!left),
-                    ),
+                val front = RoundRect(
+                    left = topLeft.x, top = topLeft.y + tile * 0.5f, right = topLeft.x + tile, bottom = topLeft.y + tile + depth,
+                    topLeftCornerRadius = CornerRadius.Zero,
+                    topRightCornerRadius = CornerRadius.Zero,
+                    // Square where the front continues or meets a wall beside it.
+                    bottomRightCornerRadius = round(!right),
+                    bottomLeftCornerRadius = round(!left),
                 )
+                wallFronts += Path().apply { addRoundRect(front) } to front
                 if (level.tileAt(x, y + 1).isWalkable) {
                     wallShadows += Offset(topLeft.x, topLeft.y + tile + depth) to Size(tile, tile * 0.22f)
                 }
@@ -139,15 +182,26 @@ internal class StaticBoard(level: Level, private val tile: Float, private val or
     }
 
     fun draw(scope: DrawScope, palette: Palette) = with(scope) {
-        // Soft shadow under the whole structure, built from a few offset passes.
-        for (pass in 1..3) {
-            withTransform({ translate(0f, tile * 0.06f * pass) }) {
-                drawPath(footprint, palette.shadow.copy(alpha = if (palette.isDark) 0.16f else 0.06f))
+        // Soft shadow under the whole structure: widening outlines, each faint,
+        // add up to a falloff away from the edge. (A blur filter would need a
+        // bitmap on Android 8, where hardware canvases ignore it.)
+        val shadowAlpha = if (palette.isDark) 0.36f else 0.14f
+        withTransform({ translate(0f, tile * 0.1f) }) {
+            drawPath(footprint, palette.shadow.copy(alpha = shadowAlpha / 2))
+            for (step in 1..SHADOW_STEPS) {
+                drawPath(
+                    footprint,
+                    palette.shadow.copy(alpha = shadowAlpha / SHADOW_STEPS),
+                    style = Stroke(width = tile * 0.065f * step, join = StrokeJoin.Round),
+                )
             }
         }
         drawPath(grout, palette.floorEdge)
         drawPath(floorEven, palette.floor)
         drawPath(floorOdd, palette.floorAlt)
+        val bevel = Stroke(width = tile * 0.03f, cap = StrokeCap.Round)
+        drawPath(floorLit, Color.White.copy(alpha = if (palette.isDark) 0.05f else 0.45f), style = bevel)
+        drawPath(floorShaded, palette.floorEdge.copy(alpha = if (palette.isDark) 0.9f else 0.6f), style = bevel)
         for (speck in speckles) drawCircle(palette.floorEdge.copy(alpha = 0.55f), tile * 0.018f, speck)
         for ((topLeft, size) in wallShadows) {
             drawRect(
@@ -170,13 +224,53 @@ internal class StaticBoard(level: Level, private val tile: Float, private val or
                 drawRect(sideShade, Offset.Zero, Size(tile * 0.22f, tile))
             }
         }
-        drawPath(wallFronts, palette.wallFront)
-        drawPath(wallTops, palette.wallTop)
-        drawPath(wallCaps, lerp(palette.wallTop, palette.wallHighlight, 0.2f))
-        val highlight = palette.wallHighlight.copy(alpha = 0.8f)
-        for ((start, end) in wallHighlights) {
-            drawLine(highlight, start, end, strokeWidth = tile * 0.05f, cap = StrokeCap.Round)
+        // Front faces darken towards the floor.
+        val frontLow = lerp(palette.wallFront, palette.shadow, if (palette.isDark) 0.3f else 0.25f)
+        for ((path, rect) in wallFronts) {
+            val faceTop = rect.bottom - tile * WALL_DEPTH
+            drawPath(path, Brush.verticalGradient(listOf(palette.wallFront, frontLow), startY = faceTop, endY = rect.bottom))
         }
+        // The wall tops show between the stones as mortar.
+        drawPath(wallTops, palette.wallTop)
+        val stoneLine = tile * 0.028f
+        for (stone in stones) {
+            val r = stone.rect
+            val base = lerp(palette.wallTop, palette.wallHighlight, 0.22f + 0.1f * stone.tone)
+            drawRoundRect(
+                Brush.verticalGradient(
+                    listOf(lerp(base, palette.wallHighlight, 0.35f), base, lerp(base, palette.wallTop, 0.4f)),
+                    startY = r.top,
+                    endY = r.bottom,
+                ),
+                Offset(r.left, r.top),
+                Size(r.width, r.height),
+                CornerRadius(r.topLeftCornerRadius.x),
+            )
+            // Each stone catches the light on its top edge and is shaded on its lower one.
+            val inset = r.topLeftCornerRadius.x
+            drawLine(
+                palette.wallHighlight.copy(alpha = 0.7f),
+                Offset(r.left + inset, r.top + stoneLine / 2),
+                Offset(r.right - inset, r.top + stoneLine / 2),
+                strokeWidth = stoneLine,
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                palette.wallFront.copy(alpha = 0.45f),
+                Offset(r.left + inset, r.bottom - stoneLine / 2),
+                Offset(r.right - inset, r.bottom - stoneLine / 2),
+                strokeWidth = stoneLine,
+                cap = StrokeCap.Round,
+            )
+        }
+        val highlight = palette.wallHighlight.copy(alpha = 0.6f)
+        for ((start, end) in wallHighlights) {
+            drawLine(highlight, start, end, strokeWidth = tile * 0.04f, cap = StrokeCap.Round)
+        }
+    }
+
+    private companion object {
+        const val SHADOW_STEPS = 6
     }
 }
 
@@ -186,10 +280,29 @@ internal class StaticBoard(level: Level, private val tile: Float, private val or
  */
 internal fun DrawScope.drawGoal(topLeft: Offset, tile: Float, palette: Palette, pulse: Float, lit: Float) {
     val center = Offset(topLeft.x + tile / 2f, topLeft.y + tile / 2f)
+    // The target is set into the floor: a shallow recess, shaded along its
+    // upper edge and lit along its lower rim.
+    val recess = tile * 0.34f
+    val recessBounds = Offset(center.x - recess, center.y - recess)
+    drawCircle(palette.floorEdge.copy(alpha = if (palette.isDark) 0.6f else 0.28f), recess, center)
+    drawArc(
+        palette.shadow.copy(alpha = if (palette.isDark) 0.4f else 0.14f), 190f, 160f, false,
+        recessBounds, Size(recess * 2, recess * 2), style = Stroke(width = tile * 0.04f, cap = StrokeCap.Round),
+    )
+    drawArc(
+        Color.White.copy(alpha = if (palette.isDark) 0.07f else 0.55f), 25f, 130f, false,
+        recessBounds, Size(recess * 2, recess * 2), style = Stroke(width = tile * 0.03f, cap = StrokeCap.Round),
+    )
     val ringRadius = tile * (0.25f + 0.02f * pulse)
     drawCircle(palette.goal.copy(alpha = 0.16f + 0.08f * pulse), ringRadius + tile * 0.06f, center)
     drawCircle(palette.goal, ringRadius, center, style = Stroke(width = tile * 0.065f))
+    drawArc(
+        palette.goalGlow.copy(alpha = 0.75f), 200f, 110f, false,
+        Offset(center.x - ringRadius, center.y - ringRadius), Size(ringRadius * 2, ringRadius * 2),
+        style = Stroke(width = tile * 0.025f, cap = StrokeCap.Round),
+    )
     drawCircle(palette.goal, tile * 0.085f, center)
+    drawCircle(palette.goalGlow.copy(alpha = 0.8f), tile * 0.028f, center + Offset(-tile * 0.025f, -tile * 0.025f))
     if (lit > 0f) {
         drawCircle(palette.goalGlow.copy(alpha = 0.55f * lit), tile * (0.3f + 0.45f * (1f - lit)), center, style = Stroke(tile * 0.05f * lit + 1f))
     }
@@ -239,20 +352,35 @@ internal fun DrawScope.drawCrate(topLeft: Offset, tile: Float, palette: Palette,
             center = Offset(topLeft.x + tile / 2, topLeft.y + tile / 2),
         )
     }
-    // Ground shadow stays on the floor even when the crate hops.
-    drawRoundRect(
-        palette.shadow.copy(alpha = if (palette.isDark) 0.35f else 0.16f),
-        Offset(topLeft.x + tile * 0.08f, topLeft.y + tile * 0.3f),
-        Size(tile * 0.84f, tile * 0.68f),
-        CornerRadius(tile * 0.2f),
-    )
+    // Ground shadow stays on the floor even when the crate hops; stacked
+    // widening layers give it a soft edge.
+    val shadowAlpha = (if (palette.isDark) 0.4f else 0.2f) / 3f
+    for (layer in 0..2) {
+        val grow = tile * 0.035f * layer
+        drawRoundRect(
+            palette.shadow.copy(alpha = shadowAlpha),
+            Offset(topLeft.x + tile * 0.1f - grow, topLeft.y + tile * 0.32f - grow / 2),
+            Size(tile * 0.8f + grow * 2, tile * 0.66f + grow * 1.5f),
+            CornerRadius(tile * 0.2f + grow),
+        )
+    }
 
     val pivot = Offset(topLeft.x + tile / 2, topLeft.y + tile * 0.92f)
     val scaleX = look.scale * (1f + look.squash * 0.08f)
     val scaleY = look.scale * (1f - look.squash * 0.1f)
     withTransform({ scale(scaleX, scaleY, pivot) }) {
-        drawRoundRect(dark, Offset(left, top + depth), Size(width, faceHeight), radius)
-        drawRoundRect(body, Offset(left, top), Size(width, faceHeight), radius)
+        drawRoundRect(
+            Brush.verticalGradient(listOf(dark, lerp(dark, palette.shadow, 0.2f)), startY = top + faceHeight / 2, endY = top + depth + faceHeight),
+            Offset(left, top + depth),
+            Size(width, faceHeight),
+            radius,
+        )
+        drawRoundRect(
+            Brush.verticalGradient(listOf(lerp(body, light, 0.35f), body, lerp(body, dark, 0.18f)), startY = top, endY = top + faceHeight),
+            Offset(left, top),
+            Size(width, faceHeight),
+            radius,
+        )
         // Top edge catches the light.
         drawLine(
             light.copy(alpha = 0.9f),
@@ -268,6 +396,12 @@ internal fun DrawScope.drawCrate(topLeft: Offset, tile: Float, palette: Palette,
         drawRoundRect(detail, panelTopLeft, panelSize, CornerRadius(tile * 0.07f), style = Stroke(width = tile * 0.045f))
         val braceAlpha = 1f - look.done
         if (braceAlpha > 0f) {
+            // Plank seams behind the brace.
+            val seam = detail.copy(alpha = detail.alpha * 0.55f * braceAlpha)
+            for (k in 1..2) {
+                val y = panelTopLeft.y + panelSize.height * k / 3f
+                drawLine(seam, Offset(panelTopLeft.x + tile * 0.03f, y), Offset(panelTopLeft.x + panelSize.width - tile * 0.03f, y), strokeWidth = tile * 0.022f)
+            }
             drawLine(
                 detail.copy(alpha = detail.alpha * braceAlpha),
                 Offset(panelTopLeft.x + tile * 0.05f, panelTopLeft.y + panelSize.height - tile * 0.05f),
@@ -275,6 +409,12 @@ internal fun DrawScope.drawCrate(topLeft: Offset, tile: Float, palette: Palette,
                 strokeWidth = tile * 0.06f,
                 cap = StrokeCap.Round,
             )
+        }
+        // A nail in each corner of the frame.
+        val nail = tile * 0.06f
+        for ((nx, ny) in listOf(left + nail to top + nail, left + width - nail to top + nail, left + nail to top + faceHeight - nail, left + width - nail to top + faceHeight - nail)) {
+            drawCircle(dark.copy(alpha = 0.75f), tile * 0.022f, Offset(nx, ny))
+            drawCircle(light.copy(alpha = 0.8f), tile * 0.009f, Offset(nx - tile * 0.006f, ny - tile * 0.006f))
         }
         if (look.done > 0f) {
             // A check mark replaces the brace once the crate is home.
@@ -372,8 +512,13 @@ internal fun DrawScope.drawHero(topLeft: Offset, tile: Float, palette: Palette, 
             Size(tile * 0.64f, bodyHeight),
             CornerRadius(tile * 0.3f),
         )
+        // Lit from the top left, so the body reads as round.
         drawRoundRect(
-            palette.player,
+            Brush.radialGradient(
+                listOf(lerp(palette.player, palette.playerLight, 0.45f), palette.player, lerp(palette.player, palette.playerDark, 0.45f)),
+                center = Offset(cx - tile * 0.1f, bodyTop + tile * 0.16f),
+                radius = tile * 0.62f,
+            ),
             Offset(cx - tile * 0.32f, bodyTop),
             Size(tile * 0.64f, bodyHeight - tile * 0.02f),
             CornerRadius(tile * 0.3f),
