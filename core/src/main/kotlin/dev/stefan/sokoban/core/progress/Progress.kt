@@ -38,7 +38,11 @@ object ProgressRules {
 
     fun isUnlocked(progress: Progress, levelIds: List<String>, index: Int): Boolean {
         val id = levelIds.getOrNull(index) ?: return false
-        return index == 0 || id in progress.unlocked || id in progress.completed
+        // Also derived from the levels just before it: levels added to the end of
+        // the campaign open for players who had already solved the last one.
+        val opener = (index - UNLOCK_AHEAD).coerceAtLeast(0) until index
+        return index == 0 || id in progress.unlocked || id in progress.completed ||
+            opener.any { levelIds[it] in progress.completed }
     }
 
     fun complete(progress: Progress, levelIds: List<String>, index: Int, moves: Int, par: Int): Completion {

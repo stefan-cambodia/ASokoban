@@ -37,6 +37,19 @@ class ProgressRulesTest {
     }
 
     @Test
+    fun `levels added after the last one open for players who solved it`() {
+        val before = listOf("a", "b", "c")
+        val progress = before.indices.fold(Progress()) { progress, index ->
+            ProgressRules.complete(progress, before, index, moves = 5, par = 5).progress
+        }
+        val extended = before + listOf("d", "e", "f")
+        assertTrue(ProgressRules.isUnlocked(progress, extended, 3))
+        assertTrue(ProgressRules.isUnlocked(progress, extended, 4))
+        assertFalse(ProgressRules.isUnlocked(progress, extended, 5))
+        assertEquals(3, ProgressRules.nextLevelToPlay(progress, extended))
+    }
+
+    @Test
     fun `first completion is a new best`() {
         val completion = ProgressRules.complete(Progress(), ids, 0, moves = 12, par = 10)
         assertTrue(completion.isNewBest)
