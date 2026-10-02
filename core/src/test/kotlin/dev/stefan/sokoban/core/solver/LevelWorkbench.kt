@@ -7,6 +7,8 @@ import dev.stefan.sokoban.core.levels.LevelPack
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
 import java.io.File
+import java.util.concurrent.ForkJoinPool
+import kotlin.random.Random
 import kotlin.time.measureTimedValue
 
 /**
@@ -16,6 +18,7 @@ import kotlin.time.measureTimedValue
  * ```
  * ./gradlew :core:test --tests '*LevelWorkbench*' -Psokoban.report=/tmp/report.txt --rerun
  * ./gradlew :core:test --tests '*LevelWorkbench*' -Psokoban.generate=/tmp/rooms.txt --rerun
+ * ./gradlew :core:test --tests '*LevelWorkbench*' -Psokoban.scramble=/tmp/big-rooms.txt --rerun
  * ```
  */
 class LevelWorkbench {
@@ -111,6 +114,70 @@ class LevelWorkbench {
         File(input.path + ".out").writeText(output.toString())
     }
 
+    /**
+     * Like [generate], for rooms too large to search exhaustively: random
+     * backward walks ([Scramble]) propose layouts, the forward solver keeps the
+     * ones it can prove, and the hardest of those are written out.
+     *
+     * Blocks take the same format as for [generate]; `; seed n` changes the
+     * walks of a room.
+     */
+    @Test
+    @EnabledIfSystemProperty(named = "sokoban.scramble", matches = ".+")
+    fun scramble() {
+        val input = File(System.getProperty("sokoban.scramble"))
+        val output = StringBuilder()
+        val blocks = input.readText().split(Regex("\\n\\s*\\n")).filter { it.isNotBlank() }
+        // Each solve can hold millions of states: only a few at a time.
+        val pool = ForkJoinPool(2)
+        for (block in blocks) {
+            val meta = block.lines().filter { it.startsWith(";") }.map { it.drop(1).trim() }
+            val name = meta.firstOrNull { !it.startsWith("seed") } ?: "room"
+            val seed = meta.firstOrNull { it.startsWith("seed") }?.substringAfter("seed")?.trim()?.toIntOrNull() ?: 0
+            val map = block.lines().filter { !it.startsWith(";") }.joinToString("\n")
+                .replace('.', '*').replace('$', ' ')
+            val room = runCatching { LevelParser.parse(map) }.getOrElse {
+                output.appendLine("=== $name: INVALID ${it.message}\n")
+                continue
+            }
+            val (scored, time) = measureTimedValue {
+                val scramble = Scramble(room)
+                val random = Random(seed * 7919 + name.hashCode())
+                val walks = (0 until SCRAMBLE_WALKS).mapNotNull { scramble.walk(random, SCRAMBLE_STEPS) }
+                    .distinctBy { it.boxes }
+                    .sortedByDescending { it.score }
+                    .take(SCRAMBLE_SOLVES)
+                pool.submit<List<Pair<String, Solver.Result.Solved>>> {
+                    walks.parallelStream().map { candidate ->
+                        val text = render(room, candidate.boxes, pickPlayer(candidate.playerArea))
+                        val level = LevelParser.parse(text)
+                        val solved = Solver(level).solve(Solver.Metric.PUSHES, SCRAMBLE_BUDGET) as? Solver.Result.Solved
+                        solved?.let {
+                            check(GameEngine.replay(level, it.lurd).isSolved)
+                            text to it
+                        }
+                    }.toList().filterNotNull()
+                }.get().sortedByDescending { (_, solved) -> solved.explored }.take(4)
+            }
+            output.appendLine("=== $name: ${scored.size} proven, $time")
+            for ((text, solved) in scored) {
+                // Move-optimal when affordable, for a fair par.
+                val level = LevelParser.parse(text)
+                val byMoves = Solver(level).solve(Solver.Metric.MOVES, 1_500_000) as? Solver.Result.Solved
+                val best = byMoves?.takeIf { it.moves <= solved.moves } ?: solved
+                output.appendLine(
+                    "--- moves=${best.moves}${if (byMoves == null) "+" else ""} pushes=${solved.pushes} " +
+                        "effort=${solved.explored} boxes=${level.boxStarts.size}",
+                )
+                output.appendLine(text)
+                output.appendLine("; ${best.lurd}")
+            }
+            output.appendLine()
+            File(input.path + ".out").writeText(output.toString())
+        }
+        pool.shutdown()
+    }
+
     /** A player start inside [area]: the open cell nearest the area's centre. */
     private fun pickPlayer(area: List<Position>): Position {
         val cx = area.map { it.x }.average()
@@ -138,5 +205,12 @@ class LevelWorkbench {
                 }
             }.trimEnd()
         }
+    }
+
+    private companion object {
+        const val SCRAMBLE_WALKS = 600
+        const val SCRAMBLE_STEPS = 400
+        const val SCRAMBLE_SOLVES = 15
+        const val SCRAMBLE_BUDGET = 1_500_000
     }
 }

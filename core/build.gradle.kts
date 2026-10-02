@@ -25,7 +25,7 @@ dependencies {
 }
 
 // Level design tools (see LevelWorkbench): enabled only when these are passed.
-val workbenchProperties = listOf("sokoban.report", "sokoban.generate")
+val workbenchProperties = listOf("sokoban.report", "sokoban.generate", "sokoban.scramble")
     .associateWith { providers.gradleProperty(it).orNull }
     .filterValues { it != null }
 
