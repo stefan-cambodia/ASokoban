@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.SavedStateHandle
 import dev.stefan.sokoban.core.Direction
+import dev.stefan.sokoban.core.Position
 import dev.stefan.sokoban.core.levels.LevelPack
 import dev.stefan.sokoban.data.ProgressRepository
 import dev.stefan.sokoban.feedback.GameFeedback
@@ -13,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -263,5 +265,39 @@ class GameViewModelTest {
             advanceUntilIdle()
         }
         assertTrue(vm.state.value!!.stuckCrates.isNotEmpty(), vm.state.value!!.game.level.toText())
+    }
+
+    @Test
+    fun `a bump says where it happened, and a held direction knocks only once`() = runTest(dispatcher) {
+        val vm = viewModel()
+        val events = mutableListOf<BoardEvent>()
+        backgroundScope.launch { vm.events.collect { events += it } }
+        vm.open(0) // "First Push": a free cell, then the wall, to the player's left.
+        repeat(3) {
+            vm.move(Direction.LEFT)
+            advanceUntilIdle()
+        }
+        assertEquals(
+            listOf(
+                BoardEvent.Stepped(Direction.LEFT, Position(1, 2)),
+                BoardEvent.Bumped(Direction.LEFT, Position(1, 2), intoCrate = false, knocked = true),
+                BoardEvent.Bumped(Direction.LEFT, Position(1, 2), intoCrate = false, knocked = false),
+            ),
+            events,
+        )
+        assertEquals(listOf("step", "bump"), feedback.events)
+    }
+
+    @Test
+    fun `a bump against a crate that cannot move says so`() = runTest(dispatcher) {
+        val vm = viewModel()
+        val events = mutableListOf<BoardEvent>()
+        backgroundScope.launch { vm.events.collect { events += it } }
+        vm.open(3) // "Along the Wall": push the crate left until the wall stops it.
+        for (direction in listOf(Direction.UP, Direction.LEFT, Direction.LEFT, Direction.LEFT)) {
+            vm.move(direction)
+            advanceUntilIdle()
+        }
+        assertEquals(BoardEvent.Bumped(Direction.LEFT, Position(2, 2), intoCrate = true, knocked = true), events.last())
     }
 }

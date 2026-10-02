@@ -185,7 +185,11 @@ private fun Vignette(modifier: Modifier) {
             while (!game.isSolved) {
                 val result = GameEngine.move(game, Direction.RIGHT)
                 game = result.state
-                if (result is MoveResult.Pushed) events.emit(BoardEvent.Pushed(result.boxIndex, Direction.RIGHT, result.to, result.enteredGoal))
+                when (result) {
+                    is MoveResult.Walked -> events.emit(BoardEvent.Stepped(Direction.RIGHT, result.to))
+                    is MoveResult.Pushed -> events.emit(BoardEvent.Pushed(result.boxIndex, Direction.RIGHT, result.to, result.enteredGoal))
+                    is MoveResult.Blocked -> Unit
+                }
                 delay(if (result is MoveResult.Pushed) 380L else 300L)
             }
             events.emit(BoardEvent.Solved)

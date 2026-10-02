@@ -35,6 +35,9 @@ const val WALL_DEPTH = 0.2f
 
 private val EYE_SIDES = floatArrayOf(-1f, 1f)
 
+/** cos 45°: steps along a diagonal. */
+private const val DIAGONAL = 0.70710677f
+
 /** One stone of a wall's top face, with its own shade: -1 darker .. 1 lighter. */
 private class Stone(val rect: RoundRect, val tone: Float)
 
@@ -322,6 +325,9 @@ internal class CrateLook {
     /** Arrival glow around the crate, 0..1. */
     var glow = 0f
 
+    /** Position of the light sweeping across the face, 0..1; none at either end. */
+    var glint = 0f
+
     /** Entrance scale, 0..1. */
     var scale = 1f
 
@@ -424,6 +430,22 @@ internal fun DrawScope.drawCrate(topLeft: Offset, tile: Float, palette: Palette,
             val s = tile * 0.13f * (0.6f + 0.4f * look.done)
             drawLine(mark, Offset(cx - s, cy), Offset(cx - s * 0.25f, cy + s * 0.75f), strokeWidth = tile * 0.075f, cap = StrokeCap.Round)
             drawLine(mark, Offset(cx - s * 0.25f, cy + s * 0.75f), Offset(cx + s * 1.1f, cy - s * 0.8f), strokeWidth = tile * 0.075f, cap = StrokeCap.Round)
+        }
+        if (look.glint > 0f && look.glint < 1f) {
+            // A diagonal band of light crosses the face, top left to bottom
+            // right: a gradient across the band, transparent beyond it.
+            val band = tile * 0.2f
+            val travel = (width + faceHeight) * DIAGONAL
+            val along = -band + (travel + band * 2) * look.glint
+            val start = Offset(left + (along - band) * DIAGONAL, top + (along - band) * DIAGONAL)
+            val end = Offset(left + (along + band) * DIAGONAL, top + (along + band) * DIAGONAL)
+            val shine = Color.White.copy(alpha = if (palette.isDark) 0.45f else 0.6f)
+            drawRoundRect(
+                Brush.linearGradient(listOf(Color.Transparent, shine, Color.Transparent), start, end),
+                Offset(left, top),
+                Size(width, faceHeight),
+                radius,
+            )
         }
         if (look.stuck > 0f) {
             drawRoundRect(

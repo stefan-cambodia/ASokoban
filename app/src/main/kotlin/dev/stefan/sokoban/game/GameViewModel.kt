@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.stefan.sokoban.SokobanApplication
+import dev.stefan.sokoban.core.BlockReason
 import dev.stefan.sokoban.core.DeadlockDetector
 import dev.stefan.sokoban.core.Direction
 import dev.stefan.sokoban.core.GameEngine
@@ -67,9 +68,16 @@ data class GameUiState(
 
 /** One-shot moments the board turns into motion. */
 sealed interface BoardEvent {
-    data class Stepped(val direction: Direction) : BoardEvent
+    /** The hero walked one cell, onto [to]. */
+    data class Stepped(val direction: Direction, val to: Position) : BoardEvent
     data class Pushed(val crate: Int, val direction: Direction, val to: Position, val enteredGoal: Boolean) : BoardEvent
-    data class Bumped(val direction: Direction) : BoardEvent
+
+    /**
+     * The hero, standing on [at], ran into a wall or into a crate that cannot
+     * move ([intoCrate]). [knocked] is false for the repeats of a held
+     * direction, which stay quiet.
+     */
+    data class Bumped(val direction: Direction, val at: Position, val intoCrate: Boolean, val knocked: Boolean) : BoardEvent
     data object Undone : BoardEvent
     data object Restarted : BoardEvent
     data object Solved : BoardEvent
@@ -213,7 +221,7 @@ class GameViewModel(
             is MoveResult.Walked -> {
                 commit(result.state)
                 feedback.step()
-                _events.tryEmit(BoardEvent.Stepped(direction))
+                _events.tryEmit(BoardEvent.Stepped(direction, result.to))
                 pace(STEP_MS)
             }
             is MoveResult.Pushed -> {
@@ -226,10 +234,11 @@ class GameViewModel(
                 if (result.state !== current.game) commit(result.state)
                 // Holding a direction against a wall knocks once, not every repeat.
                 val now = SystemClock.uptimeMillis()
-                if (direction != lastBumpDirection || now - lastBumpAt > BUMP_REPEAT_QUIET_MS) feedback.bump()
+                val knocked = direction != lastBumpDirection || now - lastBumpAt > BUMP_REPEAT_QUIET_MS
+                if (knocked) feedback.bump()
                 lastBumpAt = now
                 lastBumpDirection = direction
-                _events.tryEmit(BoardEvent.Bumped(direction))
+                _events.tryEmit(BoardEvent.Bumped(direction, result.state.player, result.reason == BlockReason.BOX, knocked))
                 pace(BUMP_MS)
             }
         }
@@ -247,7 +256,7 @@ class GameViewModel(
             val result = GameEngine.move(current.game, direction) as? MoveResult.Walked ?: return
             commit(result.state)
             feedback.step()
-            _events.tryEmit(BoardEvent.Stepped(direction))
+            _events.tryEmit(BoardEvent.Stepped(direction, result.to))
             delay(WALK_MS)
         }
     }

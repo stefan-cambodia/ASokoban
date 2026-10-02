@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -88,15 +89,16 @@ fun GameBoard(
     val colors = palette
     val scope = rememberCoroutineScope()
     val motion = remember(level) { BoardMotion(level, game, scope) }
-    val sparkColors = remember(colors) { listOf(colors.goalGlow, colors.star, colors.crateDoneLight, Color.White) }
+    val effectColors = remember(colors) { effectColors(colors) }
     val move by rememberUpdatedState(onMove)
     val tap by rememberUpdatedState(onTapCell)
     val interactive = onMove != null
 
     LaunchedEffect(motion) { motion.enter() }
     LaunchedEffect(motion) { motion.sparkles.run() }
+    LaunchedEffect(motion) { motion.dust.run() }
     LaunchedEffect(motion, game, stuckCrates) { motion.sync(game, stuckCrates) }
-    LaunchedEffect(motion, events, sparkColors) { events.collect { motion.onEvent(it, sparkColors) } }
+    LaunchedEffect(motion, events, effectColors) { events.collect { motion.onEvent(it, effectColors) } }
 
     val idle = rememberInfiniteTransition(label = "idle")
     val clock = idle.animateFloat(0f, 1f, infiniteRepeatable(tween(IDLE_CYCLE_MS, easing = LinearEasing)), label = "clock")
@@ -220,6 +222,8 @@ private fun DrawScope.drawDynamic(
     for ((cell, lit) in motion.goalLit) {
         drawGoal(metrics.topLeft(cell.x.toFloat(), cell.y.toFloat()), tile, colors, pulse, lit.value)
     }
+    // Dust stays on the floor: whatever stands in front of it hides it.
+    motion.dust.draw(this, metrics.origin, tile, ParticleStyle.Puff)
 
     // Painter's order by row: whatever stands lower on screen is in front.
     val heroSlot = motion.crates.size
@@ -265,14 +269,25 @@ private fun DrawScope.drawDynamic(
             crateLook.stuck = motion.crateStuck[slot].value
             crateLook.squash = motion.crateSquash[slot].value
             crateLook.glow = motion.crateGlow[slot].value
+            crateLook.glint = motion.crateGlint[slot].value
             crateLook.scale = easeOutBack(appear)
             crateLook.hop = sin(hopPhase * PI.toFloat()) * 0.3f
             drawCrate(metrics.topLeft(position.x, position.y), tile, colors, crateLook)
         }
     }
 
-    motion.sparkles.draw(this, metrics.origin, tile, confetti = false)
+    motion.sparkles.draw(this, metrics.origin, tile, ParticleStyle.Spark)
 }
+
+private fun effectColors(colors: Palette) = EffectColors(
+    sparks = listOf(colors.goalGlow, colors.star, colors.crateDoneLight, Color.White),
+    // Pale dust on the light floor, a lighter haze on the dark one.
+    dust = if (colors.isDark) {
+        listOf(lerp(colors.floor, Color.White, 0.32f).copy(alpha = 0.9f), lerp(colors.floor, colors.wallHighlight, 0.55f).copy(alpha = 0.8f))
+    } else {
+        listOf(lerp(colors.floor, Color.White, 0.7f).copy(alpha = 0.95f), lerp(colors.floorEdge, colors.shadow, 0.12f).copy(alpha = 0.75f))
+    },
+)
 
 internal fun easeOutBack(t: Float): Float {
     val c1 = 1.70158f

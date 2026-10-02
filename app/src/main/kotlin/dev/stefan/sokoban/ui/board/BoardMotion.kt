@@ -22,6 +22,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Colours of the one-shot effects, resolved once per theme. */
+internal class EffectColors(val sparks: List<Color>, val dust: List<Color>)
+
 /**
  * All the motion on one level's board.
  *
@@ -40,6 +43,9 @@ internal class BoardMotion(private val level: Level, game: GameState, private va
     val crateSquash: List<Animatable<Float, AnimationVector1D>> = game.boxes.map { Animatable(0f) }
     val crateGlow: List<Animatable<Float, AnimationVector1D>> = game.boxes.map { Animatable(0f) }
     val crateStuck: List<Animatable<Float, AnimationVector1D>> = game.boxes.map { Animatable(0f) }
+
+    /** The light sweeping across a crate that reached a target: 0..1, idle at either end. */
+    val crateGlint: List<Animatable<Float, AnimationVector1D>> = game.boxes.map { Animatable(0f) }
     val goalLit: Map<Position, Animatable<Float, AnimationVector1D>> = level.goals.associateWith { Animatable(0f) }
 
     val lean = Animatable(0f)
@@ -53,6 +59,9 @@ internal class BoardMotion(private val level: Level, game: GameState, private va
     val celebration = Animatable(0f)
 
     val sparkles = Particles(capacity = 96, gravity = 5f, drag = 2.5f)
+
+    /** Floor-level puffs: they drift up a little and stop quickly. */
+    val dust = Particles(capacity = 120, gravity = -0.6f, drag = 5f)
 
     /** Plays the level's arrival: board fades in, crates pop, the hero lands. */
     suspend fun enter() {
@@ -74,24 +83,42 @@ internal class BoardMotion(private val level: Level, game: GameState, private va
         if (!game.isSolved && celebration.targetValue != 0f) scope.launch { celebration.snapTo(0f) }
     }
 
-    fun onEvent(event: BoardEvent, sparkColors: List<Color>) {
+    fun onEvent(event: BoardEvent, colors: EffectColors) {
         when (event) {
-            is BoardEvent.Stepped -> Unit
+            is BoardEvent.Stepped -> scuff(event.to, event.direction, colors.dust)
             is BoardEvent.Pushed -> {
                 pulse(lean, 1f, LEAN_MS)
                 val crate = event.crate
+                val direction = event.direction
+                scuff(event.to - direction, direction, colors.dust)
                 scope.launch {
                     // The squash lands when the crate arrives, not when it leaves.
                     delay(LAND_DELAY_MS)
+                    // Dust squeezed out from under its two lower corners,
+                    // still carried forward by the push.
+                    val base = event.to.toOffset() + Offset(0.5f, 0.9f)
+                    for (side in SIDES) {
+                        dust.puff(
+                            base + Offset(side * 0.36f, 0f), 6, 1.1f, 0.45f,
+                            Offset(side * 0.45f + direction.dx * 0.5f, direction.dy * 0.3f - 0.1f),
+                            0.16f, colors.dust, 0.5f,
+                        )
+                    }
                     crateSquash[crate].snapTo(1f)
                     crateSquash[crate].animateTo(0f, spring(dampingRatio = 0.35f, stiffness = 600f))
                 }
                 if (event.enteredGoal) {
                     scope.launch {
                         delay(LAND_DELAY_MS)
-                        sparkles.burst(event.to.toOffset() + Offset(0.5f, 0.45f), 14, 3.2f, 0.1f, sparkColors, 0.55f)
+                        sparkles.burst(event.to.toOffset() + Offset(0.5f, 0.45f), 14, 3.2f, 0.1f, colors.sparks, 0.55f)
                         crateGlow[crate].snapTo(1f)
                         crateGlow[crate].animateTo(0f, tween(GLOW_MS))
+                    }
+                    scope.launch {
+                        // Once the crate has turned green, a glint crosses its face.
+                        delay(LAND_DELAY_MS + GLINT_DELAY_MS)
+                        crateGlint[crate].snapTo(0f)
+                        crateGlint[crate].animateTo(1f, tween(GLINT_MS, easing = FastOutSlowInEasing))
                     }
                     goalLit[event.to]?.let { lit ->
                         scope.launch {
@@ -102,12 +129,34 @@ internal class BoardMotion(private val level: Level, game: GameState, private va
                 }
             }
             is BoardEvent.Bumped -> {
-                bumpDirection = event.direction
+                val direction = event.direction
+                bumpDirection = direction
                 scope.launch {
                     bump.animateTo(1f, tween(BUMP_OUT_MS))
                     bump.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 900f))
                 }
                 pulse(lean, 0.6f, LEAN_MS)
+                if (event.knocked) {
+                    // A puff where the hero, or the stuck crate in front of
+                    // it, meets what stops it; it bounces back off.
+                    val cell = (if (event.intoCrate) event.at + direction else event.at).toOffset()
+                    if (direction == Direction.UP) {
+                        // The hero or crate hides the middle of the obstacle's
+                        // foot, so the dust escapes on either side.
+                        for (side in SIDES) {
+                            dust.puff(
+                                cell + Offset(0.5f + side * 0.4f, WALL_DEPTH + 0.1f), 3, 0.8f, 0.6f,
+                                Offset(side * 0.45f, 0.05f), 0.12f, colors.dust, 0.45f,
+                            )
+                        }
+                    } else {
+                        dust.puff(
+                            cell + contact(direction), 6, 1f, 0.6f,
+                            Offset(-direction.dx * 0.5f, -direction.dy * 0.4f - 0.15f),
+                            0.13f, colors.dust, 0.45f,
+                        )
+                    }
+                }
             }
             BoardEvent.Undone -> Unit
             BoardEvent.Restarted -> scope.launch {
@@ -122,12 +171,18 @@ internal class BoardMotion(private val level: Level, game: GameState, private va
                     val center = crate.targetValue + Offset(0.5f, 0.3f)
                     scope.launch {
                         delay(index * HOP_STAGGER_MS)
-                        sparkles.burst(center, 10, 2.6f, 0.09f, sparkColors, 0.7f)
+                        sparkles.burst(center, 10, 2.6f, 0.09f, colors.sparks, 0.7f)
                     }
                 }
                 celebration.animateTo(1f, tween(CELEBRATION_MS))
             }
         }
+    }
+
+    /** A faint scuff where the hero's back foot pushed off, on its way to [to]. */
+    private fun scuff(to: Position, direction: Direction, palette: List<Color>) {
+        val heel = (to - direction).toOffset() + Offset(0.5f + direction.dx * 0.1f, 0.88f + direction.dy * 0.05f)
+        dust.puff(heel, 3, 0.45f, 0.5f, Offset(-direction.dx * 0.5f, -direction.dy * 0.35f), 0.1f, palette, 0.4f)
     }
 
     private fun glide(animatable: Animatable<Offset, AnimationVector2D>, target: Offset, spec: androidx.compose.animation.core.SpringSpec<Offset>) {
@@ -143,6 +198,18 @@ internal class BoardMotion(private val level: Level, game: GameState, private va
     }
 
     companion object {
+        private val SIDES = floatArrayOf(-1f, 1f)
+
+        /**
+         * Where something standing on a cell meets an obstacle to its side or
+         * below, at floor level: the cell below starts at the bottom edge.
+         */
+        private fun contact(direction: Direction) = when (direction) {
+            Direction.LEFT -> Offset(0.08f, 0.8f)
+            Direction.RIGHT -> Offset(0.92f, 0.8f)
+            Direction.UP, Direction.DOWN -> Offset(0.5f, 0.96f)
+        }
+
         /** Critically damped: fast, precise, no overshoot for the hero. */
         val HERO_SPRING = spring(dampingRatio = 1f, stiffness = 1500f, visibilityThreshold = Offset(0.001f, 0.001f))
 
@@ -156,6 +223,8 @@ internal class BoardMotion(private val level: Level, game: GameState, private va
         const val LEAN_MS = 180
         const val LAND_DELAY_MS = 90L
         const val GLOW_MS = 700
+        const val GLINT_DELAY_MS = 120L
+        const val GLINT_MS = 520
         const val BUMP_OUT_MS = 60
         const val CELEBRATION_MS = 900
         const val HOP_STAGGER_MS = 70L

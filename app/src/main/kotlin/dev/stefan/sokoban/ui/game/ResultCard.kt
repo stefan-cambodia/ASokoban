@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import dev.stefan.sokoban.R
 import dev.stefan.sokoban.feedback.Feedback
 import dev.stefan.sokoban.game.LevelResult
+import dev.stefan.sokoban.ui.board.ParticleStyle
 import dev.stefan.sokoban.ui.board.Particles
 import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
@@ -70,7 +71,7 @@ fun ConfettiLayer(trigger: Any?, modifier: Modifier = Modifier) {
                 particles.rain(width, 150, with(density) { 420.dp.toPx() }, with(density) { 11.dp.toPx() }, confettiColors, 3.4f)
             }
         }
-        Spacer(Modifier.fillMaxSize().drawBehind { particles.draw(this, Offset.Zero, 1f, confetti = true) })
+        Spacer(Modifier.fillMaxSize().drawBehind { particles.draw(this, Offset.Zero, 1f, ParticleStyle.Confetti) })
     }
 }
 
