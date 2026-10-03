@@ -150,6 +150,7 @@ fun SokobanApp() {
                             onPlay = ::play,
                             onLevels = { push(Screen.Levels) },
                             onSettings = { push(Screen.Settings) },
+                            board3d = current.board3d,
                         )
                     }
                     Screen.Levels -> {

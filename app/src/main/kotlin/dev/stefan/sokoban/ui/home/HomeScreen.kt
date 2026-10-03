@@ -53,6 +53,7 @@ import dev.stefan.sokoban.core.progress.Progress
 import dev.stefan.sokoban.core.progress.ProgressRules
 import dev.stefan.sokoban.game.BoardEvent
 import dev.stefan.sokoban.ui.board.GameBoard
+import dev.stefan.sokoban.ui.board3d.GameBoard3D
 import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
 import dev.stefan.sokoban.ui.components.PrimaryButton
@@ -70,6 +71,7 @@ fun HomeScreen(
     onPlay: (Int) -> Unit,
     onLevels: () -> Unit,
     onSettings: () -> Unit,
+    board3d: Boolean = false,
 ) {
     val colors = palette
     val ids = remember { LevelPack.levels.map { it.id } }
@@ -93,7 +95,7 @@ fun HomeScreen(
             Spacer(Modifier.height(6.dp))
             Text(stringResource(R.string.home_tagline).uppercase(), style = GameType.label, color = colors.textSecondary)
             Spacer(Modifier.height(22.dp))
-            Vignette(Modifier.widthIn(max = 340.dp).fillMaxWidth().height(118.dp))
+            Vignette(Modifier.widthIn(max = 340.dp).fillMaxWidth().height(118.dp), board3d)
             Spacer(Modifier.weight(1f))
 
             val breathe = rememberInfiniteTransition(label = "play")
@@ -175,7 +177,7 @@ private fun Title() {
  * The hero pushing a crate home, forever: the real board, fed a scripted game.
  */
 @Composable
-private fun Vignette(modifier: Modifier) {
+private fun Vignette(modifier: Modifier, board3d: Boolean) {
     val level = remember { LevelParser.parse("########\n#@ \$  .#\n########") }
     var game by remember { mutableStateOf(GameState.start(level)) }
     val events = remember { MutableSharedFlow<BoardEvent>(extraBufferCapacity = 8) }
@@ -198,14 +200,25 @@ private fun Vignette(modifier: Modifier) {
             events.emit(BoardEvent.Restarted)
         }
     }
-    GameBoard(
-        level = level,
-        game = game,
-        stuckCrates = emptySet(),
-        events = events,
-        description = "",
-        modifier = modifier.clearAndSetSemantics { },
-    )
+    if (board3d) {
+        GameBoard3D(
+            level = level,
+            game = game,
+            stuckCrates = emptySet(),
+            events = events,
+            description = "",
+            modifier = modifier.clearAndSetSemantics { },
+        )
+    } else {
+        GameBoard(
+            level = level,
+            game = game,
+            stuckCrates = emptySet(),
+            events = events,
+            description = "",
+            modifier = modifier.clearAndSetSemantics { },
+        )
+    }
 }
 
 /** A faint tiled floor drifting diagonally, with a few floating motes. */
