@@ -27,11 +27,11 @@ class LevelPackTest {
             .associate { line -> line.substringBefore(' ') to line.substringAfter(' ') }
 
     @Test
-    fun `campaign has five worlds of ten levels`() {
-        assertEquals(5, LevelPack.worlds.size)
+    fun `campaign has seven worlds of ten levels`() {
+        assertEquals(7, LevelPack.worlds.size)
         LevelPack.worlds.forEach { assertEquals(10, it.levels.size, it.title) }
-        assertEquals(50, LevelPack.size)
-        assertEquals((0 until 50).toList(), LevelPack.levels.map { it.index })
+        assertEquals(70, LevelPack.size)
+        assertEquals((0 until 70).toList(), LevelPack.levels.map { it.index })
     }
 
     @Test
@@ -49,7 +49,7 @@ class LevelPackTest {
         DynamicTest.dynamicTest(entry.id) {
             assertEquals(emptyList<String>(), LevelParser.validate(entry.definition.map))
             val level = entry.level
-            assertTrue(level.width <= MAX_SIDE && level.height <= MAX_SIDE, "${level.width}x${level.height}")
+            assertTrue(level.width <= MAX_WIDTH && level.height <= MAX_HEIGHT, "${level.width}x${level.height}")
             val start = GameState.start(level)
             assertFalse(start.isSolved, "starts solved")
             assertFalse(DeadlockDetector(level).isDeadlocked(start), "starts deadlocked")
@@ -95,7 +95,11 @@ class LevelPackTest {
     }
 
     private companion object {
-        /** Beyond this, tiles get too small to read on a phone in portrait. */
-        const val MAX_SIDE = 12
+        /**
+         * Beyond this, tiles get too small to read on a phone in portrait: the
+         * board gets about 360x320dp there, which is still 26dp per tile at 14x12.
+         */
+        const val MAX_WIDTH = 14
+        const val MAX_HEIGHT = 12
     }
 }

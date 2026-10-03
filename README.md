@@ -1,7 +1,7 @@
 # Sokoban
 
 A Sokoban puzzle game for Android, written in Kotlin with Jetpack Compose.
-Fifty hand-designed levels in five worlds, every one verified solvable.
+Seventy hand-designed levels in seven worlds, every one verified solvable.
 
 ## Build
 

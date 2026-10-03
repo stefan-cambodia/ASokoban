@@ -2,7 +2,7 @@ Push every crate onto a target. Simple rules, real puzzles.
 
 Sokoban is the classic warehouse puzzle: you can push one crate at a time and never pull one back, so every move counts. Plan ahead, or get stuck.
 
-• 50 hand-designed levels in five worlds, from First Steps to the Vault
+• 70 hand-designed levels in seven worlds, from First Steps to the Labyrinth
 • Every level verified solvable
 • Unlimited undo, and a restart for a fresh look
 • Up to three stars for solving a level within par

@@ -53,6 +53,8 @@ object LevelPack {
         World(3, "Workshop", "Intermediate", IntermediateLevels.levels),
         World(4, "Depot", "Advanced", AdvancedLevels.levels),
         World(5, "Vault", "Master", MasterLevels.levels),
+        World(6, "Docklands", "Big rooms", BigRoomLevels.levels),
+        World(7, "Labyrinth", "Grandmaster", MazeLevels.levels),
     )
 
     val levels: List<LevelEntry> = buildList {
