@@ -197,14 +197,18 @@ class Particles(private val capacity: Int, private val gravity: Float, private v
         )
     }
 
-    /** Draws every live particle in [style]. */
-    fun draw(scope: DrawScope, origin: Offset, scale: Float, style: ParticleStyle) = with(scope) {
+    /** Draws every live particle in [style], on a flat board at [origin] with [scale]-pixel cells. */
+    fun draw(scope: DrawScope, origin: Offset, scale: Float, style: ParticleStyle) =
+        draw(scope, FlatSpace(origin, scale), style)
+
+    /** Draws every live particle in [style], placed on screen by [space]. */
+    fun draw(scope: DrawScope, space: ParticleSpace, style: ParticleStyle) = with(scope) {
         frame // Subscribes the caller's draw to particle updates.
         for (i in 0 until count) {
             val fade = (life[i] / maxLife[i]).coerceIn(0f, 1f)
             val color = colors[i] ?: continue
-            val center = Offset(origin.x + x[i] * scale, origin.y + y[i] * scale)
-            val s = sizes[i] * scale
+            val center = space.point(x[i], y[i])
+            val s = sizes[i] * space.scale(x[i], y[i])
             when (style) {
                 ParticleStyle.Spark -> drawCircle(color.copy(alpha = fade), s * (0.4f + 0.6f * fade), center)
                 ParticleStyle.Confetti -> rotate(angle[i], center) {
@@ -225,4 +229,15 @@ class Particles(private val capacity: Int, private val gravity: Float, private v
             }
         }
     }
+}
+
+/** Where a point of the board, in cells, lands on screen, and how many pixels a cell measures there. */
+interface ParticleSpace {
+    fun point(x: Float, y: Float): Offset
+    fun scale(x: Float, y: Float): Float
+}
+
+private class FlatSpace(private val origin: Offset, private val cell: Float) : ParticleSpace {
+    override fun point(x: Float, y: Float) = Offset(origin.x + x * cell, origin.y + y * cell)
+    override fun scale(x: Float, y: Float) = cell
 }

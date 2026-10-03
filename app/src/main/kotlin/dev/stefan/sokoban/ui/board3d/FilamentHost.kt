@@ -80,6 +80,7 @@ internal class FilamentHost(context: Context) {
             val chain = swapChain ?: return
             if (!uiHelper.isReadyToRender) return
             onFrame?.invoke(frameTimeNanos)
+            aim()
             if (renderer.beginFrame(chain, frameTimeNanos)) {
                 renderer.render(view)
                 renderer.endFrame()
@@ -140,11 +141,22 @@ internal class FilamentHost(context: Context) {
         })
     }
 
+    private var aimed = -1
+
     private fun frameCamera() {
         val rig = rig ?: return
         if (width <= 0 || height <= 0) return
         rig.fit(width, height)
         camera.setProjection(rig.fovDegrees.toDouble(), width.toDouble() / height, 0.1, 200.0, com.google.android.filament.Camera.Fov.VERTICAL)
+        aimed = -1
+        aim()
+    }
+
+    /** Points the camera where the rig says, when it has moved. */
+    private fun aim() {
+        val rig = rig ?: return
+        if (rig.version == aimed) return
+        aimed = rig.version
         val (eye, target) = rig.eye to rig.target
         camera.lookAt(eye.x.toDouble(), eye.y.toDouble(), eye.z.toDouble(), target.x.toDouble(), target.y.toDouble(), target.z.toDouble(), 0.0, 1.0, 0.0)
     }
