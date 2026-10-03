@@ -69,7 +69,14 @@ internal class FilamentHost(context: Context) {
             frameCamera()
         }
 
-    var onFrame: ((frameTimeNanos: Long) -> Unit)? = null
+    /** Runs before each frame; returns whether anything is moving. */
+    var onFrame: ((frameTimeNanos: Long) -> Boolean)? = null
+
+    /** Hidden screens draw nothing. */
+    var paused = false
+
+    private var lastRender = 0L
+    private var busy = true
 
     private val choreographer = Choreographer.getInstance()
     private var running = false
@@ -78,8 +85,14 @@ internal class FilamentHost(context: Context) {
             if (!running) return
             choreographer.postFrameCallback(this)
             val chain = swapChain ?: return
-            if (!uiHelper.isReadyToRender) return
-            onFrame?.invoke(frameTimeNanos)
+            if (paused || !uiHelper.isReadyToRender) return
+            // At most 60 frames a second while something moves, 30 when
+            // only the hero breathes: a 120 Hz screen would draw twice as
+            // often for nothing.
+            val interval = if (busy) BUSY_FRAME_NANOS else IDLE_FRAME_NANOS
+            if (lastRender != 0L && frameTimeNanos - lastRender < interval - FRAME_SLACK_NANOS) return
+            lastRender = frameTimeNanos
+            busy = onFrame?.invoke(frameTimeNanos) ?: false
             aim()
             if (renderer.beginFrame(chain, frameTimeNanos)) {
                 renderer.render(view)
@@ -172,6 +185,11 @@ internal class FilamentHost(context: Context) {
         choreographer.removeFrameCallback(frameCallback)
     }
 
+    /** Something will move: draw at full rate from the next frame. */
+    fun wake() {
+        busy = true
+    }
+
     fun destroy() {
         stop()
         onFrame = null
@@ -188,6 +206,10 @@ internal class FilamentHost(context: Context) {
         engine.destroy()
     }
 }
+
+private const val BUSY_FRAME_NANOS = 1_000_000_000L / 60
+private const val IDLE_FRAME_NANOS = 1_000_000_000L / 30
+private const val FRAME_SLACK_NANOS = 2_000_000L
 
 /**
  * Lit materials from gltfio's ubershaders: no material compiler needed. Every

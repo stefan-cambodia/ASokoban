@@ -178,8 +178,8 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
         mesh.sphere(Vec3(0.075f, 0.71f, 0f), Vec3(0.085f, 0.024f, 0.045f), leaf, slices = 12, stacks = 6)
     }
 
-    /** Moves everything to where [motion] has it now. */
-    fun update(motion: BoardMotion, frameTimeNanos: Long) {
+    /** Moves everything to where [motion] has it now; returns whether anything is still moving. */
+    fun update(motion: BoardMotion, frameTimeNanos: Long): Boolean {
         val dt = if (lastFrameNanos == 0L) 0f else ((frameTimeNanos - lastFrameNanos) / 1e9f).coerceIn(0f, 0.1f)
         lastFrameNanos = frameTimeNanos
         clock += dt
@@ -244,7 +244,16 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
                 .times(Mat4.rotationX(motion.lean.value * 0.28f))
                 .times(Mat4.scale(heroScale * (1f - breath / 2f), heroScale * (1f + breath), heroScale * (1f - breath / 2f))),
         )
+        return abs(delta) > 0.5f || isMoving(motion)
     }
+
+    private fun isMoving(motion: BoardMotion): Boolean =
+        motion.hero.isRunning || motion.lean.isRunning || motion.bump.isRunning ||
+            motion.entrance.isRunning || motion.celebration.isRunning ||
+            motion.sparkles.isActive || motion.dust.isActive ||
+            motion.crates.any { it.isRunning } || motion.crateSquash.any { it.isRunning } ||
+            motion.crateDone.any { it.isRunning } || motion.crateStuck.any { it.isRunning } ||
+            motion.crateGlow.any { it.isRunning } || motion.goalLit.values.any { it.isRunning }
 
     fun destroy() {
         host.scene.removeEntity(sun)

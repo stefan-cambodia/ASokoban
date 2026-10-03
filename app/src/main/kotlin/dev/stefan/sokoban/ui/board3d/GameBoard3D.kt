@@ -34,6 +34,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -56,6 +59,7 @@ import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.theme.palette
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * The board in 3D: the same game, animations and input as the 2D board,
@@ -85,12 +89,27 @@ fun GameBoard3D(
     LaunchedEffect(motion) { motion.sparkles.run() }
     LaunchedEffect(motion) { motion.dust.run() }
     LaunchedEffect(motion, game, stuckCrates) { motion.sync(game, stuckCrates) }
-    LaunchedEffect(motion, events, effectColors) { events.collect { motion.onEvent(it, effectColors) } }
 
     val density = LocalDensity.current
     val context = LocalContext.current
     val host = remember { FilamentHost(context) }
     DisposableEffect(host) { onDispose { host.destroy() } }
+    LaunchedEffect(host, motion, game) { host.wake() }
+    LaunchedEffect(host, motion, events, effectColors) {
+        events.collect {
+            host.wake()
+            motion.onEvent(it, effectColors)
+        }
+    }
+    // Nothing is drawn while the screen is hidden.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(host, lifecycle) {
+        val observer = LifecycleEventObserver { _, _ ->
+            host.paused = !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     val scene = remember(host, level, colors) { BoardScene(host, level, colors, game.boxes.size) }
     val rig = scene.rig
     val currentMotion by rememberUpdatedState(motion)
@@ -103,16 +122,18 @@ fun GameBoard3D(
             val dt = if (last == 0L) 0f else ((time - last) / 1e9f).coerceIn(0f, 0.1f)
             last = time
             val current = currentMotion
-            scene.update(current, time)
+            var moving = scene.update(current, time) || pinching
             // Zoomed in, the view eases along to keep the hero in sight.
             if (!pinching && rig.isZoomed) {
                 val hero = current.hero.value
                 val (dx, dz) = rig.slideToShow(hero.x + 0.5f, hero.y + 0.5f)
-                if (dx != 0f || dz != 0f) {
+                if (abs(dx) > 0.01f || abs(dz) > 0.01f) {
                     val k = (dt * FOLLOW_RATE).coerceAtMost(1f)
                     rig.slide(dx * k, dz * k)
+                    moving = true
                 }
             }
+            moving
         }
         onDispose {
             host.onFrame = null
@@ -166,6 +187,7 @@ fun GameBoard3D(
                                 pinching = true
                             }
                             if (pinch) {
+                                host.wake()
                                 rig.pinch(event.calculateCentroid(), event.calculatePan(), event.calculateZoom())
                                 event.changes.forEach { it.consume() }
                                 continue
@@ -207,6 +229,7 @@ fun GameBoard3D(
                             val zoom = rig.zoom
                             val (panX, panZ) = rig.pan
                             animate(0f, 1f, animationSpec = tween(FIT_MS, easing = FastOutSlowInEasing)) { t, _ ->
+                                host.wake()
                                 rig.set(zoom + (1f - zoom) * t, panX * (1f - t), panZ * (1f - t))
                             }
                         }
