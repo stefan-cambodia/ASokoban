@@ -55,12 +55,15 @@ class Board3dGeometryTest {
     }
 
     @Test
-    fun `the camera frames the whole board`() {
-        for ((columns, rows) in listOf(8 to 5, 14 to 12, 12 to 12, 10 to 7)) {
-            val rig = CameraRig(columns, rows, wallHeight = 0.55f).apply { fit(1000, 900) }
-            for (x in listOf(0f, columns.toFloat())) for (z in listOf(0f, rows.toFloat())) for (y in listOf(0f, 0.55f)) {
-                val (px, py) = rig.project(Vec3(x, y, z))
-                assertTrue(px in 0f..1000f && py in 0f..900f, "$columns x $rows: corner ($x, $y, $z) at ($px, $py)")
+    fun `the camera frames the whole board on any screen`() {
+        // A phone in portrait, a landscape tablet's half, a narrow column.
+        for ((width, height) in listOf(1000 to 900, 2200 to 1000, 600 to 1400)) {
+            for ((columns, rows) in listOf(8 to 5, 14 to 12, 12 to 12, 10 to 7)) {
+                val rig = CameraRig(columns, rows, wallHeight = 0.55f).apply { fit(width, height) }
+                for (x in listOf(0f, columns.toFloat())) for (z in listOf(0f, rows.toFloat())) for (y in listOf(0f, 0.55f)) {
+                    val (px, py) = rig.project(Vec3(x, y, z))
+                    assertTrue(px in 0f..width.toFloat() && py in 0f..height.toFloat(), "$columns x $rows in $width x $height: corner ($x, $y, $z) at ($px, $py)")
+                }
             }
         }
     }
