@@ -50,6 +50,8 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     fun setTheme(mode: ThemeMode) = viewModelScope.launch { container.settingsRepository.setTheme(mode) }
 
+    fun setBoard3d(enabled: Boolean) = viewModelScope.launch { container.settingsRepository.setBoard3d(enabled) }
+
     fun markUnlocksSeen(ids: Set<String>) = viewModelScope.launch { container.progressRepository.markUnlocksSeen(ids) }
 
     fun markSolvedShown(ids: Set<String>) = _shownSolved.update { it.orEmpty() + ids }

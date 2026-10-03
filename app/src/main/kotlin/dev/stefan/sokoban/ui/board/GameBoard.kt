@@ -369,7 +369,7 @@ private fun DrawScope.drawDynamic(
     motion.sparkles.draw(this, metrics.origin, tile, ParticleStyle.Spark)
 }
 
-private fun effectColors(colors: Palette) = EffectColors(
+internal fun effectColors(colors: Palette) = EffectColors(
     sparks = listOf(colors.goalGlow, colors.star, colors.crateDoneLight, Color.White),
     // Pale dust on the light floor, a lighter haze on the dark one.
     dust = if (colors.isDark) {

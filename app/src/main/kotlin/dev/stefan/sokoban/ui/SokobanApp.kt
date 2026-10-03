@@ -174,6 +174,7 @@ fun SokobanApp() {
                         onSound = app::setSound,
                         onVibration = app::setVibration,
                         onTheme = app::setTheme,
+                        onBoard3d = app::setBoard3d,
                         onResetProgress = app::resetProgress,
                         onTap = app.feedback::tap,
                     )
@@ -181,6 +182,7 @@ fun SokobanApp() {
                         levelIndex = screen.index,
                         viewModel = game,
                         feedback = app.feedback,
+                        board3d = current.board3d,
                         onBack = {
                             // From a game, "back" lands on the level list even
                             // when the game was started from Play.

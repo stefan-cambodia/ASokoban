@@ -83,6 +83,7 @@ import dev.stefan.sokoban.game.GamePhase
 import dev.stefan.sokoban.game.GameUiState
 import dev.stefan.sokoban.game.GameViewModel
 import dev.stefan.sokoban.ui.board.GameBoard
+import dev.stefan.sokoban.ui.board3d.GameBoard3D
 import dev.stefan.sokoban.ui.components.CircleIconButton
 import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
@@ -99,6 +100,7 @@ fun GameScreen(
     levelIndex: Int,
     viewModel: GameViewModel,
     feedback: Feedback,
+    board3d: Boolean,
     onBack: () -> Unit,
     onOpenLevel: (Int) -> Unit,
 ) {
@@ -170,16 +172,29 @@ fun GameScreen(
             game.player.x + 1, game.player.y + 1,
         ) + if (state.stuckCrates.isNotEmpty()) " " + stringResource(R.string.board_state_stuck) else ""
         val board: @Composable (Modifier) -> Unit = { modifier ->
-            GameBoard(
-                level = level,
-                game = game,
-                stuckCrates = state.stuckCrates,
-                events = viewModel.events,
-                description = description,
-                modifier = modifier,
-                onMove = { viewModel.move(it) },
-                onTapCell = onTapCell,
-            )
+            if (board3d) {
+                GameBoard3D(
+                    level = level,
+                    game = game,
+                    stuckCrates = state.stuckCrates,
+                    events = viewModel.events,
+                    description = description,
+                    modifier = modifier,
+                    onMove = { viewModel.move(it) },
+                    onTapCell = onTapCell,
+                )
+            } else {
+                GameBoard(
+                    level = level,
+                    game = game,
+                    stuckCrates = state.stuckCrates,
+                    events = viewModel.events,
+                    description = description,
+                    modifier = modifier,
+                    onMove = { viewModel.move(it) },
+                    onTapCell = onTapCell,
+                )
+            }
         }
         val controls: @Composable () -> Unit = {
             Controls(

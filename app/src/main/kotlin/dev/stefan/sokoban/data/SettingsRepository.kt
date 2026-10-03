@@ -14,6 +14,8 @@ data class Settings(
     val sound: Boolean = true,
     val vibration: Boolean = true,
     val theme: ThemeMode = ThemeMode.SYSTEM,
+    /** Draw the game board in 3D instead of the flat board. */
+    val board3d: Boolean = true,
 )
 
 class SettingsRepository(private val store: DataStore<Preferences>) {
@@ -26,10 +28,13 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setTheme(mode: ThemeMode) = store.edit { it[THEME] = mode.name }
 
+    suspend fun setBoard3d(enabled: Boolean) = store.edit { it[BOARD_3D] = enabled }
+
     companion object {
         private val SOUND = booleanPreferencesKey("sound")
         private val VIBRATION = booleanPreferencesKey("vibration")
         private val THEME = stringPreferencesKey("theme")
+        private val BOARD_3D = booleanPreferencesKey("board_3d")
 
         /** Missing or unknown values fall back to defaults instead of failing. */
         fun Preferences.toSettings(): Settings {
@@ -38,6 +43,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
                 sound = this[SOUND] ?: defaults.sound,
                 vibration = this[VIBRATION] ?: defaults.vibration,
                 theme = this[THEME]?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } } ?: defaults.theme,
+                board3d = this[BOARD_3D] ?: defaults.board3d,
             )
         }
     }

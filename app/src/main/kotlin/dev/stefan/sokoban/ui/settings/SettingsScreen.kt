@@ -66,6 +66,7 @@ fun SettingsScreen(
     onSound: (Boolean) -> Unit,
     onVibration: (Boolean) -> Unit,
     onTheme: (ThemeMode) -> Unit,
+    onBoard3d: (Boolean) -> Unit,
     onResetProgress: () -> Unit,
     onTap: () -> Unit,
 ) {
@@ -109,6 +110,11 @@ fun SettingsScreen(
                 Divider()
                 ToggleRow(GameIcon.VIBRATION, stringResource(R.string.vibration), stringResource(R.string.vibration_detail), settings.vibration) {
                     onVibration(it)
+                    onTap()
+                }
+                Divider()
+                ToggleRow(GameIcon.CUBE, stringResource(R.string.board_3d), stringResource(R.string.board_3d_detail), settings.board3d) {
+                    onBoard3d(it)
                     onTap()
                 }
                 Divider()

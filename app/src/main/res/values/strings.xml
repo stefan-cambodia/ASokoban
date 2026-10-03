@@ -54,6 +54,8 @@
     <string name="sound_detail">Effects for moves, pushes and wins</string>
     <string name="vibration">Vibration</string>
     <string name="vibration_detail">Haptic feedback while playing</string>
+    <string name="board_3d">3D board</string>
+    <string name="board_3d_detail">Draw the board in 3D, with lighting and shadows</string>
     <string name="theme">Theme</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>

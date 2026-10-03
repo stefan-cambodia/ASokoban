@@ -97,6 +97,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.filament.android)
+    implementation(libs.filament.gltfio)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
