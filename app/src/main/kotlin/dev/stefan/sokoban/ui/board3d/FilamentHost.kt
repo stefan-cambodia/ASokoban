@@ -1,6 +1,8 @@
 package dev.stefan.sokoban.ui.board3d
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.view.Choreographer
 import android.view.Surface
 import android.view.TextureView
@@ -31,26 +33,71 @@ import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
 /**
- * One Filament engine drawing into a [TextureView]: renderer, view, camera,
- * materials and the frame loop. A [BoardScene] fills it; [onFrame] runs
+ * The Filament engine every 3D board shares, with its materials. Starting an
+ * engine and compiling its shaders takes long enough to stall the slide to a
+ * level, so it outlives the boards: it is freed once none has used it for
+ * [IDLE_MILLIS], which covers a stay in the level list.
+ *
+ * Main thread only.
+ */
+internal class FilamentRuntime private constructor() {
+
+    val engine: Engine = Engine.create()
+    val materials = MaterialLibrary(engine)
+
+    private fun destroy() {
+        materials.destroy()
+        engine.destroy()
+    }
+
+    companion object {
+        private const val IDLE_MILLIS = 30_000L
+
+        private var shared: FilamentRuntime? = null
+        private var users = 0
+        private val handler = Handler(Looper.getMainLooper())
+        private val idle = Runnable {
+            if (users == 0) {
+                shared?.destroy()
+                shared = null
+            }
+        }
+
+        fun acquire(): FilamentRuntime {
+            val runtime = shared ?: run {
+                Filament.init()
+                Gltfio.init()
+                FilamentRuntime().also { shared = it }
+            }
+            handler.removeCallbacks(idle)
+            users++
+            return runtime
+        }
+
+        fun release() {
+            users--
+            if (users == 0) handler.postDelayed(idle, IDLE_MILLIS)
+        }
+    }
+}
+
+/**
+ * One board's drawing into a [TextureView] with the shared engine: renderer,
+ * view, camera and the frame loop. A [BoardScene] fills it; [onFrame] runs
  * before each frame so the scene can follow the board's animations.
  *
  * Everything here runs on the main thread, which is where the engine is made.
  */
 internal class FilamentHost(context: Context) {
 
-    init {
-        Filament.init()
-        Gltfio.init()
-    }
-
-    val engine: Engine = Engine.create()
+    private val runtime = FilamentRuntime.acquire()
+    val engine: Engine = runtime.engine
+    val materials = runtime.materials
     private val renderer: Renderer = engine.createRenderer()
     val scene = engine.createScene()
     private val view: View = engine.createView()
     private val cameraEntity = EntityManager.get().create()
     private val camera = engine.createCamera(cameraEntity)
-    val materials = MaterialLibrary(engine)
     private val colorGrading = ColorGrading.Builder().toneMapper(ToneMapper.PBRNeutralToneMapper()).build(engine)
 
     val textureView = TextureView(context)
@@ -196,14 +243,13 @@ internal class FilamentHost(context: Context) {
         uiHelper.detach()
         swapChain?.let { engine.destroySwapChain(it) }
         swapChain = null
-        materials.destroy()
         engine.destroyColorGrading(colorGrading)
         engine.destroyRenderer(renderer)
         engine.destroyView(view)
         engine.destroyScene(scene)
         engine.destroyCameraComponent(cameraEntity)
         EntityManager.get().destroy(cameraEntity)
-        engine.destroy()
+        FilamentRuntime.release()
     }
 }
 
@@ -214,12 +260,12 @@ private const val FRAME_SLACK_NANOS = 2_000_000L
 /**
  * Lit materials from gltfio's ubershaders: no material compiler needed. Every
  * instance multiplies vertex colours by its base colour, so one mesh can be
- * tinted per crate, per goal, per theme.
+ * tinted per crate, per goal, per theme. Whoever asks for an instance
+ * destroys it.
  */
 internal class MaterialLibrary(private val engine: Engine) {
 
     private val provider = UbershaderProvider(engine)
-    private val instances = mutableListOf<MaterialInstance>()
     private val sampler = TextureSampler()
 
     // Unused texture slots still get a texture bound, for strict drivers.
@@ -248,7 +294,6 @@ internal class MaterialLibrary(private val engine: Engine) {
         instance.setFloat("metallicFactor", 0f)
         instance.setFloat("roughnessFactor", roughness)
         tint(instance, tint)
-        instances += instance
         return instance
     }
 
@@ -266,9 +311,10 @@ internal class MaterialLibrary(private val engine: Engine) {
         if (material.hasParameter(name)) setParameter(name, value)
     }
 
+    fun destroy(instance: MaterialInstance) = engine.destroyMaterialInstance(instance)
+
+    /** Frees the materials themselves, once every instance is gone. */
     fun destroy() {
-        instances.forEach(engine::destroyMaterialInstance)
-        instances.clear()
         provider.destroyMaterials()
         provider.destroy()
         engine.destroyTexture(blank)

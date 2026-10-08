@@ -58,9 +58,23 @@ policy to host.
 | Module  | Contents |
 |---------|----------|
 | `:core` | Pure Kotlin/JVM, no Android dependency: rules (`GameEngine`), immutable `GameState` with unlimited undo, level parser and validator, deadlock detection, campaign progress rules, and the level pack. |
-| `:app`  | The Compose app: Canvas-drawn board and character, D-pad, swipe, tap-to-walk and keyboard input, screens, synthesised sound, haptics, DataStore persistence. |
+| `:app`  | The Compose app: the board and character drawn in 2D (Canvas) or 3D (Filament), D-pad, swipe, tap-to-walk and keyboard input, screens, synthesised sound, haptics, DataStore persistence. |
 
 Data flows one way: `GameEngine` → `GameState` → `GameViewModel` (`StateFlow`) → Compose.
+
+## 3D board
+
+On by default, switchable in Settings. `ui/board3d/` draws the same game with
+Filament: one board mesh per level, a renderable per crate, target and the
+hero, all driven frame by frame by the 2D board's `BoardMotion`, so both
+boards animate alike; dust and sparks are the 2D particles projected onto an
+overlay. Materials are gltfio's ubershaders, so no material compiler is
+needed in the build.
+
+All boards share one Filament engine, which stays alive 30 s after the last
+board goes: starting one and compiling its shaders would stall every slide to
+a level. Filament needs OpenGL ES 3.0; without it, or should the engine fail
+to start, the board is drawn in 2D and the setting is hidden.
 
 ## Levels
 

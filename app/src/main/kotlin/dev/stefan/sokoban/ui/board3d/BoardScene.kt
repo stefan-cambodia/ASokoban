@@ -32,6 +32,7 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
     private val materials = host.materials
     private val entities = mutableListOf<Int>()
     private val meshes = mutableListOf<GpuMesh>()
+    private val instances = mutableListOf<MaterialInstance>()
 
     private val crateColor = palette.crate.linear()
     private val crateDoneColor = palette.crateDone.linear()
@@ -54,13 +55,13 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
 
         val board = MeshData().also { buildBoard(it, palette) }
         val boardEntity = entity()
-        upload(board).renderable(boardEntity, materials.lit("board", roughness = 0.85f))
+        upload(board).renderable(boardEntity, lit("board", roughness = 0.85f))
         transforms.create(boardEntity, transforms.getInstance(root), Mat4.identity())
 
         val goalMesh = upload(MeshData().also { buildGoal(it) })
         goals = level.goals.associateWith { cell ->
             val entity = entity()
-            val material = materials.lit("goal", roughness = 0.5f, tint = palette.goal.linear())
+            val material = lit("goal", roughness = 0.5f, tint = palette.goal.linear())
             goalMesh.renderable(entity, material, castShadows = false)
             transforms.create(entity, transforms.getInstance(root), Mat4.translation(cell.x + 0.5f, 0f, cell.y + 0.5f))
             entity to material
@@ -69,7 +70,7 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
         val crateMesh = upload(MeshData().also { buildCrate(it) })
         crates = List(crateCount) {
             val entity = entity()
-            val material = materials.lit("crate", roughness = 0.62f, tint = crateColor)
+            val material = lit("crate", roughness = 0.62f, tint = crateColor)
             crateMesh.renderable(entity, material)
             transforms.create(entity, transforms.getInstance(root), Mat4.identity())
             entity to material
@@ -78,10 +79,10 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
         transforms.create(hero, transforms.getInstance(root), Mat4.identity())
         val body = entity()
         upload(MeshData().also { it.sphere(Vec3(0f, 0.33f, 0f), Vec3(0.34f, 0.33f, 0.33f), Rgba.WHITE) })
-            .renderable(body, materials.lit("hero", roughness = 0.38f, tint = palette.player.linear()))
+            .renderable(body, lit("hero", roughness = 0.38f, tint = palette.player.linear()))
         transforms.create(body, transforms.getInstance(hero), Mat4.identity())
         val face = entity()
-        upload(MeshData().also { buildFace(it, palette) }).renderable(face, materials.lit("face", roughness = 0.3f))
+        upload(MeshData().also { buildFace(it, palette) }).renderable(face, lit("face", roughness = 0.3f))
         transforms.create(face, transforms.getInstance(hero), Mat4.identity())
 
         LightManager.Builder(LightManager.Type.DIRECTIONAL)
@@ -105,6 +106,9 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
     }
 
     private fun upload(data: MeshData) = GpuMesh(engine, data).also { meshes += it }
+
+    private fun lit(label: String, roughness: Float, tint: Rgba = Rgba.WHITE) =
+        materials.lit(label, roughness, tint).also { instances += it }
 
     private fun buildBoard(mesh: MeshData, palette: Palette) {
         // On the dark theme the floor is the card's own tone: lift it a little.
@@ -267,6 +271,7 @@ internal class BoardScene(private val host: FilamentHost, private val level: Lev
             EntityManager.get().destroy(entity)
         }
         meshes.forEach(GpuMesh::destroy)
+        instances.forEach(materials::destroy)
     }
 
     companion object {
