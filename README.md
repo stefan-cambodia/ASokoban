@@ -48,7 +48,8 @@ falling back to the debug key.
 Raise `versionCode` in `app/build.gradle.kts` for every upload.
 
 The store listing (texts, icon, feature graphic, screenshots) is in
-`fastlane/metadata/android/en-US/`; `docs/play-console.md` has the answers for
+`fastlane/metadata/android/en-US/`, with the Khmer texts in `km-KH/`;
+`docs/play-console.md` has the answers for
 Play Console's *App content* section and `docs/privacy-policy.md` the privacy
 policy to host.
 
@@ -72,12 +73,28 @@ Each level has a stored solution in `core/src/test/resources/solutions.txt`.
 solvability with the solver, so a broken level fails the build. A level's par
 is the length of its stored solution.
 
+A new level also needs its name (and hint, if any) in every
+`app/src/main/res/values*/levels.xml` and in `LevelText.kt`; `LevelTextTest`
+fails until it has them.
+
 Design tools, run on demand:
 
 ```bash
 ./gradlew :core:test --tests '*LevelWorkbench*' -Psokoban.report=/tmp/report.txt --rerun
 ./gradlew :core:test --tests '*LevelWorkbench*' -Psokoban.generate=/tmp/rooms.txt --rerun
 ```
+
+## Languages
+
+English and Khmer. The app follows the device language; on Android 13+ it can
+also be switched alone, in Settings › Apps › Sokoban › Language.
+
+The texts are in `app/src/main/res/values*/`: `strings.xml` for the screens,
+`levels.xml` for world and level names and tutorial hints (the English copy is
+kept identical to `:core` by `LevelTextTest`), and `typography.xml` for what a
+script needs changed. Khmer has no capitals, so it drops the letter spacing of
+titles and labels, and its taller lines get a taller hint slot. Khmer text is
+drawn with the system's Khmer font, as Nunito has no Khmer letters.
 
 ## Sound
 

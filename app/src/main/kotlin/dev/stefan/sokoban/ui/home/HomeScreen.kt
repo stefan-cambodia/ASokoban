@@ -58,6 +58,7 @@ import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
 import dev.stefan.sokoban.ui.components.PrimaryButton
 import dev.stefan.sokoban.ui.components.SecondaryButton
+import dev.stefan.sokoban.ui.displayName
 import dev.stefan.sokoban.ui.theme.GameType
 import dev.stefan.sokoban.ui.theme.palette
 import kotlinx.coroutines.delay
@@ -114,7 +115,7 @@ fun HomeScreen(
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                stringResource(R.string.continue_level, nextEntry.number, nextEntry.name),
+                stringResource(R.string.continue_level, nextEntry.number, nextEntry.displayName),
                 style = GameType.caption,
                 color = colors.textSecondary,
             )

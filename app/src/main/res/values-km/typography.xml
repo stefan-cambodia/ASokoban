@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="letter_tracking">false</bool>
+    <!-- Khmer lines are taller: stacked consonants and vowels above and below. -->
+    <dimen name="message_slot_height">52dp</dimen>
+</resources>

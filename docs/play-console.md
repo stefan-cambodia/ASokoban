@@ -3,6 +3,8 @@
 The store listing lives in `fastlane/metadata/android/en-US/` (title, short and
 full description, icon, feature graphic, phone screenshots), in the layout
 read by `fastlane supply` and F-Droid. It can also be copied in by hand.
+`km-KH/` holds the Khmer title and descriptions; without its own images, the
+Khmer listing shows the English ones.
 
 Answers for the *App content* section, from what the app actually does:
 
