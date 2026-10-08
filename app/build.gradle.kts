@@ -72,6 +72,12 @@ android {
         compose = true
     }
 
+    // Lists the translations for Android 13+, where each app can have its own
+    // language (Settings › Apps › Sokoban › Language).
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     testOptions {
         unitTests.all { it.useJUnitPlatform() }
         // Android framework stubs (Log, Bundle) answer with defaults in JVM tests.

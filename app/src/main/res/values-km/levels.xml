@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="world_1_title">ជំហានដំបូង</string>
+    <string name="world_1_subtitle">រៀនរុញ</string>
+    <string name="world_2_title">ឃ្លាំងទំនិញ</string>
+    <string name="world_2_subtitle">អ្នកចាប់ផ្ដើម</string>
+    <string name="world_3_title">រោងជាង</string>
+    <string name="world_3_subtitle">មធ្យម</string>
+    <string name="world_4_title">ដេប៉ូ</string>
+    <string name="world_4_subtitle">កម្រិតខ្ពស់</string>
+    <string name="world_5_title">រតនាគារ</string>
+    <string name="world_5_subtitle">អ្នកជំនាញ</string>
+    <string name="world_6_title">តំបន់កំពង់ផែ</string>
+    <string name="world_6_subtitle">បន្ទប់ធំៗ</string>
+    <string name="world_7_title">ផ្លូវវង្វេង</string>
+    <string name="world_7_subtitle">កំពូលអ្នកជំនាញ</string>
+
+    <string name="level_w1_01">ការរុញដំបូង</string>
+    <string name="hint_w1_01">ដើរទៅប៉ះប្រអប់ ដើម្បីរុញវាទៅលើគោលដៅ។</string>
+    <string name="level_w1_02">ប្ដូរផែនការ</string>
+    <string name="hint_w1_02">ដើរជុំវិញប្រអប់ ដើម្បីរុញវាទៅទិសថ្មី។</string>
+    <string name="level_w1_03">មួយគូ</string>
+    <string name="hint_w1_03">ប្រអប់នីមួយៗត្រូវការគោលដៅរៀងៗខ្លួន។</string>
+    <string name="level_w1_04">តាមជញ្ជាំង</string>
+    <string name="hint_w1_04">ប្រអប់ដែលនៅជាប់ជញ្ជាំង រំកិលបានតែតាមបណ្ដោយជញ្ជាំង។ ជាប់គាំង? ចុច ដកថយ។</string>
+    <string name="level_w1_05">មាត់ទ្វារ</string>
+    <string name="hint_w1_05">ប្រអប់ឆ្លងកាត់ច្រកចង្អៀតបាន — តម្រង់វាជាមុនសិន។</string>
+    <string name="level_w1_06">ចុងឆ្ងាយមុន</string>
+    <string name="hint_w1_06">បំពេញគោលដៅដែលនៅជ្រៅបំផុតមុន បើមិនដូច្នោះទេ ផ្លូវនឹងត្រូវបិទ។</string>
+    <string name="level_w1_07">ម្ដងមួយ</string>
+    <string name="hint_w1_07">អ្នករុញប្រអប់បានតែម្ដងមួយប៉ុណ្ណោះ។</string>
+    <string name="level_w1_08">បី</string>
+    <string name="hint_w1_08">គិតថាប្រអប់ណាទៅកន្លែងណា មុននឹងរុញ។</string>
+    <string name="level_w1_09">ជ្រុង</string>
+    <string name="hint_w1_09">ប្រអប់ដែលរុញចូលជ្រុងហើយ មិនអាចចេញវិញបានទេ។</string>
+    <string name="level_w1_10">បញ្ចប់ការសិក្សា</string>
+
+    <string name="level_w2_01">បន្ទប់ភ្លោះ</string>
+    <string name="level_w2_02">ផ្លូវកោង</string>
+    <string name="level_w2_03">កន្លែងផ្ទុកទំនិញ</string>
+    <string name="level_w2_04">ច្រករបៀងវែង</string>
+    <string name="level_w2_05">កែងដៃ</string>
+    <string name="level_w2_06">ច្រកជណ្ដើរ</string>
+    <string name="level_w2_07">បន្ទប់ខាងក្រោយ</string>
+    <string name="level_w2_08">បន្ទប់ក្រោមដី</string>
+    <string name="level_w2_09">ជ្រុងតូច</string>
+    <string name="level_w2_10">ទំពក់</string>
+
+    <string name="level_w3_01">ក្បែរគ្នា</string>
+    <string name="level_w3_02">សសរ</string>
+    <string name="level_w3_03">តុជាង</string>
+    <string name="level_w3_04">បន្ទប់ស្តុកទំនិញ</string>
+    <string name="level_w3_05">កំពង់ផែ</string>
+    <string name="level_w3_06">ការិយាល័យ</string>
+    <string name="level_w3_07">វៀចវេរ</string>
+    <string name="level_w3_08">ប្រឡាយ</string>
+    <string name="level_w3_09">បន្ទប់ពិដាន</string>
+    <string name="level_w3_10">រោងយន្តហោះ</string>
+
+    <string name="level_w4_01">រណ្ដៅថ្ម</string>
+    <string name="level_w4_02">អគារបន្ថែម</string>
+    <string name="level_w4_03">ស្ថានីយ៍</string>
+    <string name="level_w4_04">ជាន់រោងចក្រ</string>
+    <string name="level_w4_05">រោងសិតលោហៈ</string>
+    <string name="level_w4_06">ធុងស្តុក</string>
+    <string name="level_w4_07">យានដ្ឋាន</string>
+    <string name="level_w4_08">របងរស់</string>
+    <string name="level_w4_09">បន្ទាយ</string>
+    <string name="level_w4_10">កំពែង</string>
+
+    <string name="level_w5_01">ច្រកវង្វេង</string>
+    <string name="level_w5_02">ទីធ្លា</string>
+    <string name="level_w5_03">វិហារធំ</string>
+    <string name="level_w5_04">ជួរក្លោងទ្វារ</string>
+    <string name="level_w5_05">បន្ទប់ដែក</string>
+    <string name="level_w5_06">សាលភ្លោះ</string>
+    <string name="level_w5_07">ទីលាន</string>
+    <string name="level_w5_08">វិមាន</string>
+    <string name="level_w5_09">ជិតហើយ</string>
+    <string name="level_w5_10">បន្ទប់រតនាគារ</string>
+
+    <string name="level_w6_01">ច្រកគយ</string>
+    <string name="level_w6_02">ថែវ</string>
+    <string name="level_w6_03">ផ្លូវបំបែក</string>
+    <string name="level_w6_04">ស្ពានផែ</string>
+    <string name="level_w6_05">ជង្រុកស្រូវ</string>
+    <string name="level_w6_06">ចំណតរថភ្លើង</string>
+    <string name="level_w6_07">ផ្សារ</string>
+    <string name="level_w6_08">សាលកណ្ដាល</string>
+    <string name="level_w6_09">ទីធ្លាទំនិញ</string>
+    <string name="level_w6_10">រោងម៉ាស៊ីនកិនស្រូវ</string>
+
+    <string name="level_w7_01">យន្តការនាឡិកា</string>
+    <string name="level_w7_02">ផ្នូរក្រោមដី</string>
+    <string name="level_w7_03">ស្ពានទឹក</string>
+    <string name="level_w7_04">បិសាចក្បាលគោ</string>
+    <string name="level_w7_05">រូងទន្សាយ</string>
+    <string name="level_w7_06">សំបុកឃ្មុំ</string>
+    <string name="level_w7_07">ចំណង</string>
+    <string name="level_w7_08">អាងស្តុកទឹក</string>
+    <string name="level_w7_09">ប៉មការពារ</string>
+    <string name="level_w7_10">បេះដូងផ្លូវវង្វេង</string>
+</resources>

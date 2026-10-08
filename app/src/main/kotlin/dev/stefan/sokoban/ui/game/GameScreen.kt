@@ -62,6 +62,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -87,6 +88,9 @@ import dev.stefan.sokoban.ui.components.CircleIconButton
 import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
 import dev.stefan.sokoban.ui.components.StatPill
+import dev.stefan.sokoban.ui.displayHint
+import dev.stefan.sokoban.ui.displayName
+import dev.stefan.sokoban.ui.displayTitle
 import dev.stefan.sokoban.ui.theme.GameType
 import dev.stefan.sokoban.ui.theme.palette
 import kotlinx.coroutines.Job
@@ -279,7 +283,7 @@ private fun TopBar(entry: LevelEntry, onBack: () -> Unit, onRestart: () -> Unit)
                 color = colors.textPrimary,
             )
             Text(
-                "${entry.world.title} · ${entry.name}",
+                "${entry.world.displayTitle} · ${entry.displayName}",
                 style = GameType.caption,
                 color = colors.textSecondary,
                 maxLines = 1,
@@ -330,9 +334,9 @@ private fun MessageSlot(state: GameUiState) {
     val stuck = state.stuckCrates.isNotEmpty() && state.phase == GamePhase.Playing
     val message = when {
         stuck -> stringResource(R.string.stuck_hint)
-        else -> state.entry.hint
+        else -> state.entry.displayHint
     }
-    Box(Modifier.fillMaxWidth().height(40.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().height(dimensionResource(R.dimen.message_slot_height)).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
         AnimatedContent(
             targetState = message to stuck,
             transitionSpec = { (fadeIn(tween(220)) + scaleIn(initialScale = 0.92f)) togetherWith fadeOut(tween(150)) },

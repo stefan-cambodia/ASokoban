@@ -81,6 +81,9 @@ import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
 import dev.stefan.sokoban.ui.components.StarRow
 import dev.stefan.sokoban.ui.components.bounceClick
+import dev.stefan.sokoban.ui.displayName
+import dev.stefan.sokoban.ui.displaySubtitle
+import dev.stefan.sokoban.ui.displayTitle
 import dev.stefan.sokoban.ui.theme.GameType
 import dev.stefan.sokoban.ui.theme.palette
 import kotlinx.coroutines.delay
@@ -229,8 +232,8 @@ private fun WorldHeader(world: World, progress: Progress) {
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.world_label, world.number).uppercase(), style = GameType.label, color = colors.accent)
-                Text(world.title, style = GameType.heading.copy(fontSize = 22.sp), color = colors.textPrimary, modifier = Modifier.semantics { heading() })
-                Text(world.subtitle, style = GameType.caption, color = colors.textSecondary)
+                Text(world.displayTitle, style = GameType.heading.copy(fontSize = 22.sp), color = colors.textPrimary, modifier = Modifier.semantics { heading() })
+                Text(world.displaySubtitle, style = GameType.caption, color = colors.textSecondary)
             }
             Text(
                 stringResource(R.string.world_progress, solved, world.levels.size),
@@ -300,11 +303,11 @@ private fun LevelCard(
         CardState.SOLVED -> stringResource(
             R.string.level_solved,
             entry.number,
-            entry.name,
+            entry.displayName,
             pluralStringResource(R.plurals.moves_count, best ?: 0, best ?: 0),
             pluralStringResource(R.plurals.stars_count, stars, stars),
         )
-        else -> stringResource(R.string.level_open, entry.number, entry.name)
+        else -> stringResource(R.string.level_open, entry.number, entry.displayName)
     }
     val locked = state == CardState.LOCKED
     val background = when (state) {

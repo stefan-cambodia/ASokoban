@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_tagline">រុញ · គិត · ដោះស្រាយ</string>
+    <string name="play">លេង</string>
+    <string name="levels">កម្រិត</string>
+    <string name="settings">ការកំណត់</string>
+    <string name="continue_level">កម្រិត %1$d · %2$s</string>
+    <string name="home_progress">បានដោះស្រាយ %1$d/%2$d</string>
+
+    <string name="back">ថយក្រោយ</string>
+    <string name="restart">ចាប់ផ្ដើមឡើងវិញ</string>
+    <string name="undo">ដកថយ</string>
+    <string name="zoom_fit">បង្ហាញក្ដារទាំងមូល</string>
+    <string name="level_number">កម្រិត %1$d</string>
+    <string name="moves">ជំហាន</string>
+    <string name="crates">ប្រអប់</string>
+    <string name="best">ល្អបំផុត</string>
+    <string name="par">គំរូ</string>
+    <string name="stuck_hint">ប្រអប់មួយជាប់គាំងហើយ។ ដកថយ ដើម្បីដោះវាចេញ។</string>
+    <string name="move_up">ដើរទៅលើ</string>
+    <string name="move_down">ដើរទៅក្រោម</string>
+    <string name="move_left">ដើរទៅឆ្វេង</string>
+    <string name="move_right">ដើរទៅស្ដាំ</string>
+    <string name="board_description">ក្ដារកម្រិត %1$d ទំហំ %2$d គុណ %3$d។ ប្រអប់ %4$d ក្នុងចំណោម %5$d នៅលើគោលដៅ។ អ្នកលេងនៅជួរឈរ %6$d ជួរដេក %7$d។</string>
+    <string name="board_state_stuck">ប្រអប់មួយជាប់គាំង។</string>
+
+    <string name="level_complete">ឆ្លងកម្រិតហើយ!</string>
+    <string name="all_complete">ដោះស្រាយគ្រប់កម្រិតហើយ!</string>
+    <string name="new_best">កំណត់ត្រាថ្មី!</string>
+    <string name="best_result">ល្អបំផុត %1$d</string>
+    <string name="par_result">គំរូ %1$d</string>
+    <string name="stars_description">ផ្កាយ %1$d ក្នុងចំណោម 3</string>
+    <string name="next_level">កម្រិតបន្ទាប់</string>
+    <string name="replay">លេងម្ដងទៀត</string>
+    <string name="level_unlocked">បានបើកកម្រិត %1$d</string>
+
+    <string name="world_label">ពិភព %1$d</string>
+    <string name="level_locked">កម្រិត %1$d, ជាប់សោ</string>
+    <string name="level_open">កម្រិត %1$d, %2$s</string>
+    <string name="level_solved">កម្រិត %1$d, %2$s, ដោះស្រាយក្នុង %3$s, %4$s</string>
+    <plurals name="moves_count">
+        <item quantity="other">%d ជំហាន</item>
+    </plurals>
+    <plurals name="stars_count">
+        <item quantity="other">ផ្កាយ %d</item>
+    </plurals>
+    <string name="stars_total">ផ្កាយ %1$d ក្នុងចំណោម %2$d</string>
+
+    <string name="sound">សំឡេង</string>
+    <string name="sound_detail">សំឡេងពេលដើរ រុញ និងឈ្នះ</string>
+    <string name="vibration">ការញ័រ</string>
+    <string name="vibration_detail">ញ័រតបពេលកំពុងលេង</string>
+    <string name="theme">រចនាប័ទ្ម</string>
+    <string name="theme_system">ប្រព័ន្ធ</string>
+    <string name="theme_light">ភ្លឺ</string>
+    <string name="theme_dark">ងងឹត</string>
+    <string name="reset_progress">លុបវឌ្ឍនភាព</string>
+    <string name="reset_progress_detail">ចាក់សោកម្រិតវិញ ហើយលុបពិន្ទុល្អបំផុត</string>
+    <string name="reset_confirm_title">លុបវឌ្ឍនភាពទាំងអស់?</string>
+    <string name="reset_confirm_text">កម្រិតដែលបានដោះស្រាយ ចំនួនជំហានល្អបំផុត និងកម្រិតដែលបានបើក នឹងត្រូវលុបចោល។ ការកំណត់នៅដដែល។</string>
+    <string name="reset_confirm">លុប</string>
+    <string name="cancel">បោះបង់</string>
+    <string name="about">កំណែ %1$s · ពុម្ពអក្សរ Nunito ក្រោមអាជ្ញាប័ណ្ណ SIL Open Font License</string>
+</resources>

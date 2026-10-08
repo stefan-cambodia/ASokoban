@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What a translation's script may need changed. -->
+<resources>
+    <!-- Space out the letters of titles, buttons and labels: false for scripts without capitals. -->
+    <bool name="letter_tracking">true</bool>
+    <!-- Room for two lines of a tutorial hint under the stats. -->
+    <dimen name="message_slot_height">40dp</dimen>
+</resources>

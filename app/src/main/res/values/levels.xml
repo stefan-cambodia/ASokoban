@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown in place of the English names and hints of :core, which the tests keep in step with these. -->
+<resources>
+    <string name="world_1_title">First Steps</string>
+    <string name="world_1_subtitle">Learn to push</string>
+    <string name="world_2_title">Warehouse</string>
+    <string name="world_2_subtitle">Beginner</string>
+    <string name="world_3_title">Workshop</string>
+    <string name="world_3_subtitle">Intermediate</string>
+    <string name="world_4_title">Depot</string>
+    <string name="world_4_subtitle">Advanced</string>
+    <string name="world_5_title">Vault</string>
+    <string name="world_5_subtitle">Master</string>
+    <string name="world_6_title">Docklands</string>
+    <string name="world_6_subtitle">Big rooms</string>
+    <string name="world_7_title">Labyrinth</string>
+    <string name="world_7_subtitle">Grandmaster</string>
+
+    <string name="level_w1_01">First Push</string>
+    <string name="hint_w1_01">Walk into the crate to push it onto the target.</string>
+    <string name="level_w1_02">Change of Plan</string>
+    <string name="hint_w1_02">Walk around a crate to push it in a new direction.</string>
+    <string name="level_w1_03">Pair</string>
+    <string name="hint_w1_03">Every crate needs a target of its own.</string>
+    <string name="level_w1_04">Along the Wall</string>
+    <string name="hint_w1_04">Against a wall, a crate can only slide along it. Stuck? Tap Undo.</string>
+    <string name="level_w1_05">Doorway</string>
+    <string name="hint_w1_05">Crates fit through narrow gaps — line them up first.</string>
+    <string name="level_w1_06">Far End First</string>
+    <string name="hint_w1_06">Fill the deepest target first, or the way gets blocked.</string>
+    <string name="level_w1_07">One at a Time</string>
+    <string name="hint_w1_07">You can only push one crate at a time.</string>
+    <string name="level_w1_08">Three</string>
+    <string name="hint_w1_08">Plan which crate goes where before you push.</string>
+    <string name="level_w1_09">Corners</string>
+    <string name="hint_w1_09">A crate pushed into a corner can never leave it.</string>
+    <string name="level_w1_10">Graduation</string>
+
+    <string name="level_w2_01">Twin Rooms</string>
+    <string name="level_w2_02">The Bend</string>
+    <string name="level_w2_03">Loading Bay</string>
+    <string name="level_w2_04">Long Corridor</string>
+    <string name="level_w2_05">Elbow</string>
+    <string name="level_w2_06">Stairwell</string>
+    <string name="level_w2_07">Back Room</string>
+    <string name="level_w2_08">Cellar</string>
+    <string name="level_w2_09">Alcove</string>
+    <string name="level_w2_10">Hook</string>
+
+    <string name="level_w3_01">Side by Side</string>
+    <string name="level_w3_02">Pillars</string>
+    <string name="level_w3_03">Workbench</string>
+    <string name="level_w3_04">Storeroom</string>
+    <string name="level_w3_05">Harbor</string>
+    <string name="level_w3_06">Office</string>
+    <string name="level_w3_07">Zigzag</string>
+    <string name="level_w3_08">Canal</string>
+    <string name="level_w3_09">Loft</string>
+    <string name="level_w3_10">Hangar</string>
+
+    <string name="level_w4_01">Quarry</string>
+    <string name="level_w4_02">Annex</string>
+    <string name="level_w4_03">Terminal</string>
+    <string name="level_w4_04">Factory Floor</string>
+    <string name="level_w4_05">Foundry</string>
+    <string name="level_w4_06">Silo</string>
+    <string name="level_w4_07">Garage</string>
+    <string name="level_w4_08">Hedges</string>
+    <string name="level_w4_09">Citadel</string>
+    <string name="level_w4_10">Ramparts</string>
+
+    <string name="level_w5_01">Maze</string>
+    <string name="level_w5_02">Courts</string>
+    <string name="level_w5_03">Cathedral</string>
+    <string name="level_w5_04">Arcade</string>
+    <string name="level_w5_05">Strongroom</string>
+    <string name="level_w5_06">Twin Halls</string>
+    <string name="level_w5_07">Plaza</string>
+    <string name="level_w5_08">Manor</string>
+    <string name="level_w5_09">So Close</string>
+    <string name="level_w5_10">The Vault</string>
+
+    <string name="level_w6_01">Customs</string>
+    <string name="level_w6_02">Cloister</string>
+    <string name="level_w6_03">Crossroads</string>
+    <string name="level_w6_04">Pier</string>
+    <string name="level_w6_05">Granary</string>
+    <string name="level_w6_06">Switchyard</string>
+    <string name="level_w6_07">Market</string>
+    <string name="level_w6_08">Atrium</string>
+    <string name="level_w6_09">Freight Yard</string>
+    <string name="level_w6_10">Mill</string>
+
+    <string name="level_w7_01">Clockwork</string>
+    <string name="level_w7_02">Catacombs</string>
+    <string name="level_w7_03">Aqueduct</string>
+    <string name="level_w7_04">Minotaur</string>
+    <string name="level_w7_05">Warren</string>
+    <string name="level_w7_06">Honeycomb</string>
+    <string name="level_w7_07">Knot</string>
+    <string name="level_w7_08">Cistern</string>
+    <string name="level_w7_09">Bastion</string>
+    <string name="level_w7_10">Heart of the Maze</string>
+</resources>
