@@ -51,6 +51,7 @@ import androidx.compose.ui.window.DialogProperties
 import dev.stefan.sokoban.R
 import dev.stefan.sokoban.data.Settings
 import dev.stefan.sokoban.data.ThemeMode
+import dev.stefan.sokoban.ui.board3d.Board3dSupport
 import dev.stefan.sokoban.ui.components.CircleIconButton
 import dev.stefan.sokoban.ui.components.GameIcon
 import dev.stefan.sokoban.ui.components.GameIconView
@@ -72,6 +73,8 @@ fun SettingsScreen(
 ) {
     val colors = palette
     var confirmReset by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val can3d = remember { Board3dSupport.isSupported(context) }
 
     Column(
         Modifier
@@ -112,10 +115,12 @@ fun SettingsScreen(
                     onVibration(it)
                     onTap()
                 }
-                Divider()
-                ToggleRow(GameIcon.CUBE, stringResource(R.string.board_3d), stringResource(R.string.board_3d_detail), settings.board3d) {
-                    onBoard3d(it)
-                    onTap()
+                if (can3d) {
+                    Divider()
+                    ToggleRow(GameIcon.CUBE, stringResource(R.string.board_3d), stringResource(R.string.board_3d_detail), settings.board3d) {
+                        onBoard3d(it)
+                        onTap()
+                    }
                 }
                 Divider()
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

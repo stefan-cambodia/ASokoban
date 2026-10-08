@@ -52,6 +52,7 @@ import dev.stefan.sokoban.core.Position
 import dev.stefan.sokoban.game.BoardEvent
 import dev.stefan.sokoban.game.Swipe
 import dev.stefan.sokoban.ui.board.BoardMotion
+import dev.stefan.sokoban.ui.board.GameBoard
 import dev.stefan.sokoban.ui.board.ParticleStyle
 import dev.stefan.sokoban.ui.board.effectColors
 import dev.stefan.sokoban.ui.components.CircleIconButton
@@ -65,6 +66,8 @@ import kotlin.math.abs
  * The board in 3D: the same game, animations and input as the 2D board,
  * drawn by Filament with perspective, lighting and shadows. Dust and sparks
  * are the 2D board's particles, projected through the camera onto an overlay.
+ *
+ * On a device that cannot run Filament, it is the 2D board.
  */
 @Composable
 fun GameBoard3D(
@@ -76,6 +79,28 @@ fun GameBoard3D(
     modifier: Modifier = Modifier,
     onMove: ((Direction) -> Unit)? = null,
     onTapCell: ((Position) -> Unit)? = null,
+) {
+    val context = LocalContext.current
+    val host = remember { Board3dSupport.start(context) }
+    if (host == null) {
+        GameBoard(level, game, stuckCrates, events, description, modifier, onMove = onMove, onTapCell = onTapCell)
+        return
+    }
+    DisposableEffect(host) { onDispose { host.destroy() } }
+    FilamentBoard(host, level, game, stuckCrates, events, description, modifier, onMove, onTapCell)
+}
+
+@Composable
+private fun FilamentBoard(
+    host: FilamentHost,
+    level: Level,
+    game: GameState,
+    stuckCrates: Set<Int>,
+    events: Flow<BoardEvent>,
+    description: String,
+    modifier: Modifier,
+    onMove: ((Direction) -> Unit)?,
+    onTapCell: ((Position) -> Unit)?,
 ) {
     val colors = palette
     val scope = rememberCoroutineScope()
@@ -91,9 +116,6 @@ fun GameBoard3D(
     LaunchedEffect(motion, game, stuckCrates) { motion.sync(game, stuckCrates) }
 
     val density = LocalDensity.current
-    val context = LocalContext.current
-    val host = remember { FilamentHost(context) }
-    DisposableEffect(host) { onDispose { host.destroy() } }
     LaunchedEffect(host, motion, game) { host.wake() }
     LaunchedEffect(host, motion, events, effectColors) {
         events.collect {
