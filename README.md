@@ -3,6 +3,13 @@
 A Sokoban puzzle game for Android, written in Kotlin with Jetpack Compose.
 Seventy hand-designed levels in seven worlds, every one verified solvable.
 
+<p align="center">
+  <img src="docs/screenshots/home.webp" width="24%" alt="Home screen, with the hero pushing a crate in 3D">
+  <img src="docs/screenshots/levels.webp" width="24%" alt="Level select: each card shows the level's map, its stars and best move count">
+  <img src="docs/screenshots/board-3d-dark.webp" width="24%" alt="A level on the 3D board, in the dark theme">
+  <img src="docs/screenshots/level-complete.webp" width="24%" alt="Level complete: three stars, a new best and the next level unlocked">
+</p>
+
 ## Build
 
 Requirements: Android SDK 37 and JDK 17 or newer.
@@ -64,6 +71,10 @@ Data flows one way: `GameEngine` → `GameState` → `GameViewModel` (`StateFlow
 
 ## 3D board
 
+| 2D | 3D | Settings |
+|:--:|:--:|:--:|
+| <img src="docs/screenshots/board-2d.webp" width="220" alt="Level 37 on the 2D board"> | <img src="docs/screenshots/board-3d.webp" width="220" alt="The same position on the 3D board"> | <img src="docs/screenshots/settings.webp" width="220" alt="Settings: sound, vibration, 3D board and theme"> |
+
 On by default, switchable in Settings. `ui/board3d/` draws the same game with
 Filament: one board mesh per level, a renderable per crate, target and the
 hero, all driven frame by frame by the 2D board's `BoardMotion`, so both
@@ -75,6 +86,14 @@ All boards share one Filament engine, which stays alive 30 s after the last
 board goes: starting one and compiling its shaders would stall every slide to
 a level. Filament needs OpenGL ES 3.0; without it, or should the engine fail
 to start, the board is drawn in 2D and the setting is hidden.
+
+Both boards fit a level whole. On big rooms, whose tiles come out small, a
+pinch zooms in; the view then follows the hero when it nears an edge, and a
+button shows the whole board again.
+
+| Fitted | Pinched in |
+|:--:|:--:|
+| <img src="docs/screenshots/big-room.webp" width="220" alt="Level 51, a big room, fitted whole on the 3D board"> | <img src="docs/screenshots/big-room-zoomed.webp" width="220" alt="The same room zoomed in around the hero"> |
 
 ## Levels
 
@@ -109,6 +128,11 @@ kept identical to `:core` by `LevelTextTest`), and `typography.xml` for what a
 script needs changed. Khmer has no capitals, so it drops the letter spacing of
 titles and labels, and its taller lines get a taller hint slot. Khmer text is
 drawn with the system's Khmer font, as Nunito has no Khmer letters.
+
+<p align="center">
+  <img src="docs/screenshots/khmer-levels.webp" width="24%" alt="Level select in Khmer">
+  <img src="docs/screenshots/khmer-hint.webp" width="24%" alt="A tutorial level in Khmer, with its hint over two lines">
+</p>
 
 ## Sound
 
