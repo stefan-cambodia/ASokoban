@@ -55,7 +55,7 @@ falling back to the debug key.
 Raise `versionCode` in `app/build.gradle.kts` for every upload.
 
 The store listing (texts, icon, feature graphic, screenshots) is in
-`fastlane/metadata/android/en-US/`, with the Khmer texts in `km-KH/`;
+`fastlane/metadata/android/en-US/`, with the Khmer texts and screenshots in `km-KH/`;
 `docs/play-console.md` has the answers for
 Play Console's *App content* section and `docs/privacy-policy.md` the privacy
 policy to host.
